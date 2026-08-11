@@ -1,0 +1,54 @@
+VISIONARY OBJECT
+================
+
+KURULUM
+1. Bes zip dosyasinin BESINI DE ayni klasore acin.
+   Hepsi ayni "site" klasorunu olusturur, ustune ustune acilir.
+2. site klasorunun icindeki index.html dosyasina cift tiklayin.
+
+Sunucu, kurulum, internet gerekmez.
+
+ICERIK
+  index.html      uygulama - 20 sayfa, tek dosya
+  app.css         statik sayfalarin stil dosyasi
+  img/ilan-01..49 49 ilanin 334 fotografi, satici sirasiyla
+                  her kare uc boyutta: -t kucuk, -c kart, -f buyuk
+  item/           49 ilanin taranabilir ayri sayfasi (arama motorlari icin)
+  category/       4 kategori sayfasi (all, paintings-and-prints,
+                  handmade-objects, documents)
+  sitemap.xml     54 adres
+  robots.txt      arama motoru izni + sitemap adresi
+  favicon.svg     site ikonu
+
+Dosyalar birbirini goreli yoldan okur; index.html ile img klasoru
+ayni yerde kalmali. Yayina alirken site klasorunun tamamini yukleyin.
+
+ALAN ADI
+Su an canonical, og:url, sitemap.xml ve robots.txt sunu varsayiyor:
+  https://www.visionaryobject.com
+Gercek alan adiniz belli olunca build_en.py icindeki tek satiri
+degistirip yeniden derlemek yeterli:
+  SITE_URL = "https://www.visionaryobject.com"
+
+FOTOGRAF KAYNAGI
+  245 kare  temizlenmis PNG'lerden (parlama giderilmis, perspektif
+            duzeltilmis, arka plan temizlenmis) - her biri kendi orijinal
+            HEIC karesiyle karsilastirilip dogrulandi
+   89 kare  sizin cektiginiz asil HEIC fotograflarindan
+
+  Temiz karelerin 73'u kullanilmadi: model kadraji genisletip orijinal
+  fotografta hic bulunmayan cerceve/paspartu uydurmustu. Olcut: temiz
+  karenin, orijinalde karsiligi olmayan alani %4'u geciyorsa kare atildi.
+
+OLCULER
+49 ilanin tamami serit metre fotograflarindan okundu. Deger, nesnenin
+gonderilecek dis olcusu: cerceveli isler icin cerceve disi, gergi bezine
+gerilmis tuvaller icin tuvalin kendisi (ilan 08, 30-35).
+Ilan sayfalarinda inc ve cm olarak, Size filtresinde 1stDibs kovalariyla.
+
+HENUZ GIRILMEYENLER
+  fiyatlar               - hepsi "Price Upon Request"
+  Rugs & Carpets         - kategori var, ilan yok ("coming soon")
+  Lighting               - kategori var, ilan yok ("coming soon")
+  Sculpture              - kategori var, ilan yok ("coming soon")
+Fiyat girildiginde Price filtresi de acilabilir.
