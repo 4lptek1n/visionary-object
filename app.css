@@ -129,11 +129,18 @@
             border-block-end:1px solid var(--line)}
   .mh-top{display:grid;grid-template-columns:auto 1fr auto;gap:var(--gap-m);
           align-items:center;padding-block:var(--s4)}
-  .brand{display:flex;flex-direction:column;line-height:.98;gap:3px;min-block-size:44px;
-         justify-content:center}
+  /* marka kilidi: goz amblemi + yazi. Amblem musterinin logosundan kesildi. */
+  .brand{display:flex;align-items:center;gap:.62rem;min-block-size:44px}
+  .brand-mark{inline-size:38px;block-size:38px;object-fit:contain;flex:0 0 auto}
+  .brand-type{display:flex;flex-direction:column;line-height:.98;gap:3px;
+              justify-content:center}
   .brand b{font-family:var(--f-serif);font-weight:400;font-size:1.5rem;letter-spacing:-.02em}
   .brand i{font-style:normal;font-family:var(--f-mono);font-size:.56rem;
            letter-spacing:.34em;color:var(--ink-3)}
+  /* altbilgide logonun tamami */
+  .brand--full{display:block;min-block-size:0;inline-size:min(240px,72%)}
+  .brand--full img{inline-size:100%;block-size:auto;display:block}
+  @media (max-width:640px){ .brand--full{inline-size:min(200px,60%)} }
 
   .search{position:relative;display:flex;align-items:center;gap:.6rem;
           border:1px solid var(--line-ui);border-radius:var(--r);
@@ -1270,8 +1277,10 @@ body.stat{background:var(--bg);color:var(--ink);font-family:var(--f-sans);}
 .stat-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;
   padding:1.1rem clamp(1.1rem,4vw,2.6rem);border-block-end:1px solid var(--line);
   flex-wrap:wrap;}
-.stat-head .wordmark{font-family:var(--f-serif);font-size:1.5rem;text-decoration:none;color:var(--ink);}
-.stat-head .wordmark span{display:block;font-family:var(--f-mono);font-size:.6rem;
+.stat-head .wordmark{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:var(--ink);}
+.stat-head .wordmark img{inline-size:34px;block-size:34px;object-fit:contain;flex:0 0 auto}
+.stat-head .wm-t{font-family:var(--f-serif);font-size:1.5rem;line-height:1}
+.stat-head .wm-t span{display:block;font-family:var(--f-mono);font-size:.6rem;
   letter-spacing:.18em;color:var(--ink-3);text-transform:uppercase;}
 .stat main{padding-block:2.5rem 4rem;}
 .crumbs{font-size:var(--t-xs);color:var(--ink-3);margin-block-end:1.6rem;}
