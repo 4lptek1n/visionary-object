@@ -1197,6 +1197,32 @@
   .zoomb:hover{color:var(--ink);border-color:var(--line-ui)}
   .zoomb svg{inline-size:18px;block-size:18px}
   .stage img{cursor:zoom-in}
+
+  /* ---- buyutec ----
+     Gercek bir buyutec gibi calisir: imlecin altindaki bolgeyi, fotografin
+     kendi cozunurlugunde gosterir. Buyutme orani fotografa gore hesaplanir,
+     yani goruntu bulanik buyutulmez; ne kadar detay varsa o kadar gosterilir.
+     Dokunmatikte gizli: orada parmak imlecin yerini tutmuyor, tam ekran acilir. */
+  .loupe{position:absolute;pointer-events:none;z-index:3;border-radius:var(--r-pill);
+         inline-size:var(--loupe,240px);block-size:var(--loupe,240px);
+         background-repeat:no-repeat;background-color:var(--paper);
+         box-shadow:0 10px 34px rgb(0 0 0/.22),0 0 0 1px var(--line-ui),
+                    inset 0 0 0 4px rgb(255 255 255/.92);
+         opacity:0;scale:.92;transform-origin:center;
+         transition:opacity .13s ease,scale .13s ease}
+  .loupe[data-on]{opacity:1;scale:1}
+  .stage[data-loupe] img{cursor:none}
+  @media (hover:none),(pointer:coarse){ .loupe{display:none} }
+  @media (prefers-reduced-motion:reduce){ .loupe{transition:none} }
+
+  /* tam ekranda tikla-yaklas: dokunmatikte de calisir */
+  .lb img{cursor:zoom-in;touch-action:none}
+  .lb img[data-zoom]{cursor:grab;max-inline-size:none;max-block-size:none}
+  .lb img[data-zoom][data-grab]{cursor:grabbing}
+  .lb .hint{position:absolute;inset-block-start:clamp(.8rem,2vw,1.6rem);inset-inline-start:0;
+            inset-inline-end:0;text-align:center;color:rgb(255 255 255/.62);
+            font-family:var(--f-mono);font-size:.62rem;letter-spacing:.16em;
+            text-transform:uppercase;pointer-events:none}
   .pdp-doc{max-inline-size:900px;margin-block-start:var(--gap-m)}
   .pdp-h{font-size:var(--t-h3);margin-block:var(--gap-m) var(--s5)}
   .pdp-p{color:var(--ink-2);max-inline-size:70ch;margin-block-end:.9rem;line-height:1.72}
@@ -1361,6 +1387,7 @@
   <button class="x" id="lbClose" type="button" aria-label="Close">&times;</button>
   <button class="nav prev" type="button" data-lb="-1" aria-label="Previous image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
   <img id="lbImg" alt="">
+  <p class="hint">Click the image to zoom &middot; drag to pan</p>
   <button class="nav next" type="button" data-lb="1" aria-label="Next image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
   <p class="cap" id="lbCap"></p>
 </div>
@@ -2271,6 +2298,7 @@ function viewItem(slug) {
         ${imgs.length > 1 ? `<button class="nav prev" type="button" data-step="-1" aria-label="Previous image">${ICON_LEFT}</button>
           <button class="nav next" type="button" data-step="1" aria-label="Next image">${ICON_RIGHT}</button>` : ''}
         ${imgs.length ? `<span class="idx" id="galIdx">1 of ${imgs.length}</span>
+          <div class="loupe" id="loupe" aria-hidden="true"></div>
           <button class="zoomb" type="button" id="zoomBtn" aria-label="Enlarge image">${ICON_ZOOM}</button>` : ''}
       </div>
     </div>
@@ -2611,6 +2639,51 @@ function wire(view) {
     const all = imgs.map(b => b.dataset.full);
     if (zb) zb.addEventListener('click', () => lbOpen(all, cur));
     if (stage) stage.addEventListener('click', () => lbOpen(all, cur));
+
+    /* ---- buyutec ----
+       Fotografin kendi cozunurluguyle sinirli: buyutme orani, dosyanin gercek
+       piksel genisliginin ekranda kapladigi genislige oranidir. Boylece
+       goruntu suni sekilde buyutulup bulaniklasmiyor; ne kadar detay varsa
+       o kadar gosteriliyor. */
+    const lens = $('#loupe'), kap = stage ? stage.closest('.stage') : null;
+    if (lens && stage && kap && matchMedia('(hover:hover) and (pointer:fine)').matches) {
+      let kr = null, ir = null, oran = 2;
+      const R = () => parseFloat(getComputedStyle(lens).inlineSize) / 2 || 120;
+      const olc = () => {
+        kr = kap.getBoundingClientRect();
+        ir = stage.getBoundingClientRect();
+        const dogal = stage.naturalWidth || ir.width;
+        oran = Math.min(3.2, Math.max(1.6, dogal / Math.max(1, ir.width)));
+        lens.style.backgroundImage = `url("${stage.currentSrc || stage.src}")`;
+        lens.style.backgroundSize = `${ir.width * oran}px ${ir.height * oran}px`;
+      };
+      const ro = new ResizeObserver(olc);
+      ro.observe(kap);
+      stage.addEventListener('load', olc);
+      const ac = e => {
+        if (!ir || !ir.width) olc();
+        const x = e.clientX - ir.left, y = e.clientY - ir.top;
+        if (x < 0 || y < 0 || x > ir.width || y > ir.height) return kapat();
+        const r = R();
+        lens.style.left = (e.clientX - kr.left - r) + 'px';
+        lens.style.top = (e.clientY - kr.top - r) + 'px';
+        lens.style.backgroundPosition =
+          `${-(x * oran - r)}px ${-(y * oran - r)}px`;
+        if (!lens.hasAttribute('data-on')) {
+          lens.setAttribute('data-on', '');
+          kap.setAttribute('data-loupe', '');
+        }
+      };
+      const kapat = () => { lens.removeAttribute('data-on'); kap.removeAttribute('data-loupe'); };
+      kap.addEventListener('pointerenter', olc);
+      kap.addEventListener('pointermove', e => {
+        if (e.pointerType !== 'mouse' || e.target.closest('button')) return kapat();
+        ac(e);
+      });
+      kap.addEventListener('pointerleave', kapat);
+      window.addEventListener('scroll', () => { if (lens.hasAttribute('data-on')) olc(); },
+                              { passive: true });
+    }
     const fold = $('[data-folder]');
     if (fold) fold.addEventListener('click', () => $('#auth') && (
       document.getElementById('authTitle').textContent = 'Save to a folder',
@@ -2875,15 +2948,71 @@ const lb = document.getElementById('lb');
 let lbImgs = [], lbI = 0;
 function lbShow(n) {
   lbI = (n + lbImgs.length) % lbImgs.length;
+  lbUnzoom();
   document.getElementById('lbImg').src = lbImgs[lbI];
   document.getElementById('lbCap').textContent = `${lbI + 1} of ${lbImgs.length}`;
 }
+
+/* Tam ekranda yaklas ve gezin. Dokunmatikte buyutec calismadigi icin
+   detaya bakmanin yolu bu: bir kez dokun, fotografin kendi cozunurlugune
+   yaklasir; parmagini surterek gezinirsin. */
+function lbUnzoom() {
+  const im = document.getElementById('lbImg');
+  if (!im) return;
+  im.removeAttribute('data-zoom');
+  im.removeAttribute('data-grab');
+  im.style.transform = '';
+  im.style.transformOrigin = '';
+}
+(function lbZoomKur() {
+  const im = document.getElementById('lbImg');
+  if (!im) return;
+  let sur = false, ox = 0, oy = 0, tx = 0, ty = 0, K = 1;
+  const uygula = () => { im.style.transform = `translate(${tx}px,${ty}px) scale(${K})`; };
+  const sinirla = () => {
+    const r = im.getBoundingClientRect();
+    const tasx = Math.max(0, (im.offsetWidth * K - innerWidth) / 2);
+    const tasy = Math.max(0, (im.offsetHeight * K - innerHeight) / 2);
+    tx = Math.min(tasx, Math.max(-tasx, tx));
+    ty = Math.min(tasy, Math.max(-tasy, ty));
+    return r;
+  };
+  im.addEventListener('click', e => {
+    e.stopPropagation();
+    if (im.hasAttribute('data-zoom')) { lbUnzoom(); K = 1; tx = ty = 0; return; }
+    K = Math.min(3.2, Math.max(1.8, (im.naturalWidth || 1400) / Math.max(1, im.offsetWidth)));
+    const r = im.getBoundingClientRect();
+    // tiklanan nokta ekranin ortasina gelsin
+    tx = (r.left + r.width / 2 - e.clientX) * K;
+    ty = (r.top + r.height / 2 - e.clientY) * K;
+    im.setAttribute('data-zoom', '');
+    sinirla(); uygula();
+  });
+  im.addEventListener('pointerdown', e => {
+    if (!im.hasAttribute('data-zoom')) return;
+    sur = true; ox = e.clientX - tx; oy = e.clientY - ty;
+    im.setAttribute('data-grab', '');
+    im.setPointerCapture(e.pointerId);
+  });
+  im.addEventListener('pointermove', e => {
+    if (!sur) return;
+    tx = e.clientX - ox; ty = e.clientY - oy;
+    sinirla(); uygula();
+  });
+  const birak = e => {
+    if (!sur) return;
+    sur = false; im.removeAttribute('data-grab');
+    try { im.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  im.addEventListener('pointerup', birak);
+  im.addEventListener('pointercancel', birak);
+})();
 function lbOpen(imgs, i) {
   if (!imgs.length) return;
   lbImgs = imgs; lb.hidden = false; document.body.style.overflow = 'hidden';
   lbShow(i); document.getElementById('lbClose').focus();
 }
-function lbClose() { lb.hidden = true; document.body.style.overflow = ''; }
+function lbClose() { lbUnzoom(); lb.hidden = true; document.body.style.overflow = ''; }
 lb.addEventListener('click', e => {
   if (e.target.closest('#lbClose') || e.target === lb) return lbClose();
   const n = e.target.closest('[data-lb]');

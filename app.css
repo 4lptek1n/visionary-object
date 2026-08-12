@@ -1174,6 +1174,32 @@
   .zoomb:hover{color:var(--ink);border-color:var(--line-ui)}
   .zoomb svg{inline-size:18px;block-size:18px}
   .stage img{cursor:zoom-in}
+
+  /* ---- buyutec ----
+     Gercek bir buyutec gibi calisir: imlecin altindaki bolgeyi, fotografin
+     kendi cozunurlugunde gosterir. Buyutme orani fotografa gore hesaplanir,
+     yani goruntu bulanik buyutulmez; ne kadar detay varsa o kadar gosterilir.
+     Dokunmatikte gizli: orada parmak imlecin yerini tutmuyor, tam ekran acilir. */
+  .loupe{position:absolute;pointer-events:none;z-index:3;border-radius:var(--r-pill);
+         inline-size:var(--loupe,240px);block-size:var(--loupe,240px);
+         background-repeat:no-repeat;background-color:var(--paper);
+         box-shadow:0 10px 34px rgb(0 0 0/.22),0 0 0 1px var(--line-ui),
+                    inset 0 0 0 4px rgb(255 255 255/.92);
+         opacity:0;scale:.92;transform-origin:center;
+         transition:opacity .13s ease,scale .13s ease}
+  .loupe[data-on]{opacity:1;scale:1}
+  .stage[data-loupe] img{cursor:none}
+  @media (hover:none),(pointer:coarse){ .loupe{display:none} }
+  @media (prefers-reduced-motion:reduce){ .loupe{transition:none} }
+
+  /* tam ekranda tikla-yaklas: dokunmatikte de calisir */
+  .lb img{cursor:zoom-in;touch-action:none}
+  .lb img[data-zoom]{cursor:grab;max-inline-size:none;max-block-size:none}
+  .lb img[data-zoom][data-grab]{cursor:grabbing}
+  .lb .hint{position:absolute;inset-block-start:clamp(.8rem,2vw,1.6rem);inset-inline-start:0;
+            inset-inline-end:0;text-align:center;color:rgb(255 255 255/.62);
+            font-family:var(--f-mono);font-size:.62rem;letter-spacing:.16em;
+            text-transform:uppercase;pointer-events:none}
   .pdp-doc{max-inline-size:900px;margin-block-start:var(--gap-m)}
   .pdp-h{font-size:var(--t-h3);margin-block:var(--gap-m) var(--s5)}
   .pdp-p{color:var(--ink-2);max-inline-size:70ch;margin-block-end:.9rem;line-height:1.72}
