@@ -5,7 +5,9 @@
  */
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const sb = createClient(window.VO.URL, window.VO.ANAHTAR);
+// Supabase bagliysa gercek istemci; degilse onizleme.js'in sahte istemcisi.
+const sb = window.__VO_SB || createClient(window.VO.URL, window.VO.ANAHTAR);
+const ONIZLEME = !!(sb && sb.ONIZLEME);
 const kok = document.getElementById("kok");
 const bildirimKutu = document.getElementById("bildirim");
 
@@ -144,7 +146,9 @@ function kabuk(icerik, aktif) {
           <button class="btn btn--kucuk" id="yayinla">Yayinla</button>
         </div>
       </div>
-      <div class="icerik" id="icerik">${icerik}</div>
+      <div class="icerik" id="icerik">${ONIZLEME ? `<p class="uyari-serit uyari-serit--hata" style="border-color:var(--pnl-uyari);color:var(--pnl-uyari);background:#FDF9F0">
+        Onizleme modu. Veriler gercek, ekranlar gercek; ama Supabase bagli olmadigi icin
+        hicbir degisiklik kaydedilmez. Kurulum bitince bu serit kaybolur.</p>` : ""}${icerik}</div>
     </main>
   </div>`;
 
@@ -950,6 +954,13 @@ window.addEventListener("hashchange", yonlendir);
 
 /* --------------------------------------------------------------- baslangic */
 async function baslat() {
+  if (ONIZLEME) {
+    profil = { id: "onizleme", ad: "Onizleme", rol: "sahip", eposta: "onizleme" };
+    oturum = { user: { id: "onizleme" } };
+    yonlendir();
+    setTimeout(() => bildir("Onizleme modu: gercek 270 ilan gorunuyor, degisiklikler kaydedilmez.", false), 400);
+    return;
+  }
   if (!window.VO || window.VO.URL.startsWith("BURAYA")) {
     kok.innerHTML = `<div class="giris"><div class="kutu" style="padding:2rem;max-inline-size:520px">
       <h2>Panel henuz baglanmadi</h2>
