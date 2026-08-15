@@ -1487,14 +1487,14 @@ const shotList = d => Object.entries(d.roles).map(([k, v]) => `${v} ${ROLE[k] ||
 /* ---------------- card ---------------- */
 function card(d, i) {
   const img = cover(d);
-  return `<article class="work up" data-io style="--i:${i % 4}">
+  return `<article class="work up" data-io data-vo-kart="${d.slug}" style="--i:${i % 4}">
     <div class="work-fig msk" style="--i:${i % 8}">${pic(img, 'c', esc(d.title))}</div>
     <button class="fav" type="button" data-slug="${d.slug}" data-on="${FAV.has(d.slug) ? 1 : 0}" aria-label="Save ${esc(d.title)} to favorites">${ICON_HEART}</button>
     <button class="qv" type="button" data-qv="${d.slug}" aria-label="Quick view: ${esc(d.title)}">${ICON_EYE}</button>
     <h3 class="ttl"><a href="#/item/${d.slug}" data-pdp="${d.slug}">${esc(creatorOf(d))}</a></h3>
     <p class="by">${esc(d.title)}${d.period && !d.title.includes(d.period) ? ', ' + esc(d.period) : ''}</p>
     <p class="spec">${d.shots} photographs${d.dims ? `&nbsp;&middot; ${d.dims[1]} &times; ${d.dims[0]} in` : ''}</p>
-    <p class="price"><span>Price Upon Request</span><em>${d.doc ? 'Certificate' : ''}</em></p>
+    <p class="price"><span data-vo="fiyat">Price Upon Request</span><em>${d.doc ? 'Certificate' : ''}</em></p>
   </article>`;
 }
 
@@ -2282,7 +2282,7 @@ function viewItem(slug) {
     <span aria-current="page">${d.title.length > 58 ? esc(d.title.slice(0, 56).replace(/[\s,]+$/, '')) + '&hellip;' : esc(d.title)}</span>
   </nav>
 
-  <div class="pdp">
+  <div class="pdp" data-vo-urun="${d.slug}">
     <div class="gal">
       <div class="thumbs" role="tablist" aria-label="Item photographs">${thumbs}</div>
       <div class="stage">
@@ -2305,12 +2305,12 @@ function viewItem(slug) {
           <button class="iconb" type="button" data-folder aria-label="Save to a folder">${ICON_FOLDER}</button>
         </div>
       </div>
-      <p class="creatorline">${d.creator
+      <p class="creatorline" data-vo="sanatci">${d.creator
         ? `<a href="#/browse?artist=${encodeURIComponent(d.creator)}">${esc(d.creator)}</a>` : 'Unknown'}</p>
-      <h1>${esc(d.title)}</h1>
-      <p class="sub">${d.period ? esc(d.period) : esc(d.catEn)}</p>
+      <h1 data-vo="baslik">${esc(d.title)}</h1>
+      <p class="sub" data-vo="donem">${d.period ? esc(d.period) : esc(d.catEn)}</p>
       <p class="in-room">${ICON_RULER}Hung in the collection you can walk through &middot; <a href="museum/index.html">enter the Museum</a></p>
-      <p class="askprice"><b>Price Upon Request</b><span>${d.framing.includes('unframed') ? 'UNFRAMED' : 'FRAME INCLUDED'}</span></p>
+      <p class="askprice"><b data-vo="fiyat">Price Upon Request</b><span>${d.framing.includes('unframed') ? 'UNFRAMED' : 'FRAME INCLUDED'}</span></p>
       <div class="acts">
         <button class="btn btn--fill" type="button" data-ask>Contact Seller <span class="arw" aria-hidden="true">&#8594;</span></button>
         <button class="btn btn--line" type="button" data-ask>Suggest a Price</button>
@@ -2349,7 +2349,7 @@ function viewItem(slug) {
 
     <div id="pp-details" role="tabpanel" aria-labelledby="pt-details">
       <h2 class="pdp-h">About the Item</h2>
-      <p class="pdp-p">${esc(d.desc)}${d.note ? ' ' + esc(d.note) : ''}</p>
+      <p class="pdp-p" data-vo="aciklama">${esc(d.desc)}${d.note ? ' ' + esc(d.note) : ''}</p>
       <dl class="spec">${core}</dl>
       <details class="acc"><summary>More Details</summary><div class="body"><dl class="spec">${more}</dl></div></details>
     </div>
@@ -3103,5 +3103,9 @@ window.addEventListener('hashchange', render);
 render();
 booted = true;
 </script>
+<!-- Yerinde duzenleme. Giris yapmamis ziyaretci icin bu dosya hicbir sey yapmaz
+     ve hicbir sey indirmez: once tarayicida oturum anahtari var mi diye bakar. -->
+<script>window.VO_AYAR={"URL": "BURAYA_PROJE_URL", "ANAHTAR": "BURAYA_ANON_ANAHTAR"}</script>
+<script src="vo-duzenle.js" defer></script>
 </body>
 </html>
