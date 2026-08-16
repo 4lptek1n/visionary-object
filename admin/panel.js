@@ -33,6 +33,12 @@ const para = (deger, birim = "USD") =>
 
 function gorselUrl(yol, boy = 400) {
   if (!yol) return "";
+  // Tasima sirasinda gelen kareler sitedeki mevcut webp dosyasini gosterir.
+  // Depoya yuklenmedikleri icin Supabase'e sorulmaz, dogrudan siteden alinir.
+  if (yol.indexOf("img/") === 0) {
+    const boyut = boy <= 200 ? "t" : boy <= 700 ? "c" : "f";
+    return (window.VO.SITE || "") + "/" + yol + "-" + boyut + ".webp";
+  }
   const t = sb.storage.from("gorseller").getPublicUrl(yol, {
     transform: { width: boy, height: boy, resize: "contain" }
   });

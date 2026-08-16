@@ -308,6 +308,7 @@
   }
 
   function gorselAdres(yol) {
+    if (yol.indexOf("img/") === 0) return "/" + yol + "-c.webp";
     return sb.storage.from("gorseller").getPublicUrl(yol, {
       transform: { width: 300, height: 300, resize: "contain" }
     }).data.publicUrl;
