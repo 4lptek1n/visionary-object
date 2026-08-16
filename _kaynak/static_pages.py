@@ -158,6 +158,7 @@ def item_page(d, base, roleen):
   <p class="stat-price">{("Sold" if d.get("sold") else ("Reserved" if d.get("reserved") else (("$" + format(int(d["price"]), ",") if (d.get("cur") or "USD") == "USD" else f'{int(d["price"])} {d.get("cur")}') if d.get("price") is not None else "Price Upon Request")))}</p>
   <div class="stat-gal">{figs}</div>
   <section><h2>About the Item</h2><p>{esc(d["desc"])}</p></section>
+  {f'<section><h2>About the Artist</h2><p>{esc(d["bio"])}</p></section>' if d.get("bio") else ''}
   <section><h2>Details</h2><dl class="stat-dl">{dl}</dl></section>
   <p class="stat-cta"><a class="btn btn--fill" href="../index.html#/item/{slug}">Contact the seller <span class="arw" aria-hidden="true">&rarr;</span></a></p>
 </article>

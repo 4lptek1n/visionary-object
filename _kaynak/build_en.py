@@ -225,7 +225,6 @@ def js_rows_eski():
             "gallery": e.get("gallery", ""),
             "label": e.get("label", ""),
             "bio": e.get("bio", ""),
-            "note": e.get("note", ""),
             "doc": e.get("doc", ""),
             "src": e.get("src", ""),
             "dims": [DIMS[it["no"]]["w"], DIMS[it["no"]]["h"]] if it["no"] in DIMS
@@ -279,7 +278,9 @@ def js_rows():
             "period": it.get("donem", ""), "medium": it.get("teknik", ""),
             "edition": it.get("baski", ""), "ref": it.get("ref", ""),
             "gallery": it.get("galeri_adi", ""), "label": it.get("etiket", ""),
-            "bio": it.get("biyografi", ""), "note": it.get("not", ""),
+            "bio": it.get("biyografi", ""),
+            # "not" alani BILEREK siteye tasinmiyor: katalog calismasinin ic
+            # notudur (dosya adlari, eski liste kodlari); yalnizca panelde durur.
             "doc": it.get("belge", ""), "src": it.get("kaynak_dosya", ""),
             "dims": dims,
             "dimsOf": (o or {}).get("nesi", "outside of frame"),
