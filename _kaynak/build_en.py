@@ -1170,7 +1170,9 @@ function viewItem(slug) {
 
     <div id="pp-details" role="tabpanel" aria-labelledby="pt-details">
       <h2 class="pdp-h">About the Item</h2>
-      <p class="pdp-p" data-vo="aciklama">${esc(d.desc)}${d.note ? ' ' + esc(d.note) : ''}</p>
+      <!-- d.note BILEREK gosterilmiyor: o alan katalog calismasinin ic notudur
+           (dosya adlari, supheler). Yalnizca panelde durur. -->
+      <p class="pdp-p" data-vo="aciklama">${esc(d.desc)}</p>
       <dl class="spec">${core}</dl>
       <details class="acc"><summary>More Details</summary><div class="body"><dl class="spec">${more}</dl></div></details>
     </div>
