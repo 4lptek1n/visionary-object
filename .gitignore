@@ -10,3 +10,5 @@ _kaynak/__pycache__/
 _kaynak/**/__pycache__/
 _kaynak/data/yedek/
 _kaynak/dene.bat
+_kaynak/supabase/
+_kaynak/tools/gizli_kur.bat
