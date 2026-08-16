@@ -20,5 +20,12 @@
  "fiyat_politikasi": {
   "gizli_metin": "Price Upon Request",
   "varsayilan_gizli": true
- }
+ },
+ "odeme_acik": "hayir",
+ "odeme_mod": "test",
+ "odeme_para_birimi": "USD",
+ "kargo_ucreti": "0",
+ "kargo_metni": "Shipping calculated at checkout",
+ "odeme_iade_gun": "14",
+ "talep_eposta": ""
 }

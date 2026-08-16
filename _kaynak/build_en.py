@@ -294,6 +294,8 @@ def js_rows():
             "cur": it.get("para_birimi") or "USD",
             "sale": it.get("kampanya"),
             "sold": bool(it.get("satildi")), "reserved": bool(it.get("rezerve")),
+            # Tek tikla satis bu eserde acik mi. Odeme genel ayari ayrica bakilir.
+            "buy": bool(it.get("satin_alinabilir")),
             "shots": len(img), "roles": roles, "img": img,
             # Kapak her zaman ilk karedir. Ayri bir alan olarak da veriliyor ki
             # kartlar, muze ve arama tek bir kurala baksin.
@@ -530,6 +532,14 @@ function fiyatHtml(d, buyuk) {
   return simdi + ' <s class="p-was">' + paraYaz(d.priceWas, d.cur) + '</s>' +
          ' <em class="p-off">' + o + '% off' + (d.sale && d.sale.rozet ? ' &middot; ' + esc(d.sale.rozet) : '') + '</em>';
 }
+/* Tek tikla satin alinabilir mi. Dort sart birden: odeme panelden acik,
+   bu eserde tek tikla satis isaretli, fiyati var, ve hala satista.
+   Buradaki karar sadece dugmeyi gostermek icin; gercek kontrol sunucuda. */
+function satinAlinirMi(d) {
+  const acik = (typeof AYAR !== 'undefined') && AYAR && AYAR.odeme_acik === 'evet';
+  return !!(acik && d.buy && d.price != null && !d.sold && !d.reserved);
+}
+
 const shotList = d => Object.entries(d.roles).map(([k, v]) => `${v} ${ROLE[k] || k}`).join(', ');
 
 /* ---------------- card ---------------- */
@@ -1119,8 +1129,10 @@ function viewItem(slug) {
       <p class="in-room">${ICON_RULER}Hung in the collection you can walk through &middot; <a href="museum/index.html">enter the Museum</a></p>
       <p class="askprice"><span data-vo="fiyat">${fiyatHtml(d, true)}</span><span>${d.framing.includes('unframed') ? 'UNFRAMED' : 'FRAME INCLUDED'}</span></p>
       <div class="acts">
-        <button class="btn btn--fill" type="button" data-ask>Contact Seller <span class="arw" aria-hidden="true">&#8594;</span></button>
-        <button class="btn btn--line" type="button" data-ask>Suggest a Price</button>
+        ${satinAlinirMi(d) ? `<button class="btn btn--fill" type="button" data-buy="${d.slug}">Buy Now <span class="arw" aria-hidden="true">&#8594;</span></button>
+        <button class="btn btn--line" type="button" data-ask>Contact Seller</button>`
+        : `<button class="btn btn--fill" type="button" data-ask>Contact Seller <span class="arw" aria-hidden="true">&#8594;</span></button>
+        <button class="btn btn--line" type="button" data-ask>Suggest a Price</button>`}
         <button class="btn btn--ghost" type="button" data-cart="${d.slug}">${inCart ? 'In Your Cart' : 'Add to Cart'}</button>
       </div>
       <div class="info-card">
@@ -1550,15 +1562,71 @@ document.addEventListener('click', e => { if (openBtn && !e.target.closest('.mas
 /* contact dialog */
 const enq = $('#enq');
 $$('[data-close]').forEach(b => b.addEventListener('click', () => enq.close()));
+
+/* Talep formu. Artik gercekten gonderiliyor: Supabase'deki talep-gonder
+   fonksiyonuna duser, panelde Gelen kutusunda gorunur. Fonksiyon adresi
+   yoksa form eskisi gibi sadece tesekkur eder. */
+function talepGonder(govde) {
+  const a = window.VO_AYAR;
+  if (!a || !a.URL || String(a.URL).indexOf('BURAYA') === 0) return Promise.resolve({ tamam: true });
+  return fetch(a.URL + '/functions/v1/talep-gonder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: a.ANAHTAR,
+               Authorization: 'Bearer ' + a.ANAHTAR },
+    body: JSON.stringify(govde)
+  }).then(c => c.json());
+}
+
 $('#enqForm').addEventListener('submit', e => {
   e.preventDefault();
   const f = e.target;
   const mail = f.querySelector('#f-mail');
-  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.value.trim()) && f.querySelector('#f-name').value.trim();
+  const gecerli = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.value.trim());
+  const ok = gecerli && f.querySelector('#f-name').value.trim();
   f.querySelectorAll('input[required]').forEach(i => i.setAttribute('aria-invalid', String(!i.value.trim())));
-  mail.setAttribute('aria-invalid', String(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail.value.trim())));
+  mail.setAttribute('aria-invalid', String(!gecerli));
   if (!ok) { f.querySelector('[aria-invalid="true"]').focus(); return; }
-  f.hidden = true; $('#enqOk').hidden = false;
+
+  const dugme = f.querySelector('button[type="submit"]');
+  dugme.disabled = true;
+  const slug = (location.hash.indexOf('#/item/') === 0) ? location.hash.slice(7).split('?')[0] : '';
+  talepGonder({
+    slug: slug, tur: f.dataset.tur || 'bilgi',
+    ad: f.querySelector('#f-name').value.trim(),
+    eposta: mail.value.trim(),
+    mesaj: f.querySelector('#f-msg').value.trim() || 'Bilgi talebi',
+    website: f.querySelector('#f-site') ? f.querySelector('#f-site').value : ''
+  }).then(() => {
+    f.hidden = true; $('#enqOk').hidden = false;
+  }).catch(() => {
+    f.hidden = true; $('#enqOk').hidden = false;
+  }).then(() => { dugme.disabled = false; });
+});
+
+/* Tek tikla satin alma. Fiyat sunucuda dogrulanir; buradan giden tek sey
+   eserin slug'i. Odeme kapaliysa ya da anahtar girilmemisse fonksiyon 503
+   doner ve kullaniciya mesaj gosterilir. */
+function satinAl(slug, dugme) {
+  const a = window.VO_AYAR;
+  if (!a || !a.URL) return;
+  const eskiYazi = dugme.textContent;
+  dugme.disabled = true; dugme.textContent = 'Opening checkout...';
+  fetch(a.URL + '/functions/v1/odeme-baslat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: a.ANAHTAR,
+               Authorization: 'Bearer ' + a.ANAHTAR },
+    body: JSON.stringify({ slug: slug })
+  }).then(c => c.json().then(d => ({ kod: c.status, d: d })))
+    .then(v => {
+      if (v.d && v.d.url) { location.href = v.d.url; return; }
+      dugme.disabled = false; dugme.textContent = eskiYazi;
+      enq.showModal();
+    })
+    .catch(() => { dugme.disabled = false; dugme.textContent = eskiYazi; enq.showModal(); });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-buy]');
+  if (b) satinAl(b.getAttribute('data-buy'), b);
 });
 
 """
@@ -1664,8 +1732,11 @@ def build():
         <span class="err">Please enter a valid email address.</span></div>
       <div class="fld"><label for="f-msg">Message</label>
         <textarea id="f-msg" name="message" rows="3" placeholder="Which item, and what would you like to know?"></textarea></div>
+      <div aria-hidden="true" style="position:absolute;inset-inline-start:-9999px" tabindex="-1">
+        <label for="f-site">Leave this empty</label>
+        <input id="f-site" name="website" type="text" autocomplete="off" tabindex="-1"></div>
       <button class="btn btn--fill" type="submit" style="inline-size:100%">Send <span class="arw" aria-hidden="true">→</span></button>
-      <p style="font-size:var(--t-xs);color:var(--ink-3);margin-block-start:.8rem">This is a prototype. The form does not send yet.</p>
+      <p style="font-size:var(--t-xs);color:var(--ink-3);margin-block-start:.8rem">We reply from the collection directly. Your details are used only to answer this message.</p>
     </form>
     <div id="enqOk" hidden>
       <p class="eyebrow">Received</p>
@@ -1690,6 +1761,49 @@ def build():
     print(out, f"{len(html)/1024/1024:.2f} MB")
     print("em dash:", html.count("—"), "| en dash:", html.count("–"))
     static_build(fonts)
+
+
+def odeme_sonrasi():
+    """Stripe'tan donen ziyaretcinin gordugu sayfa.
+
+    Tek basina duran bir dosya: sitenin app.css'ini kullanir, baska hicbir
+    sey indirmez. Siparis numarasi adres cubugunda gelir; sayfa onu sadece
+    gosterir, hicbir sorgu yapmaz.
+    """
+    return f'''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Order received &middot; Visionary Object</title>
+<link rel="stylesheet" href="../app.css">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<main id="app" tabindex="-1" style="max-inline-size:44rem;margin-inline:auto;
+     padding-block:clamp(4rem,12vh,9rem);padding-inline:var(--gap-m);text-align:center">
+  <p class="eyebrow">Order received</p>
+  <h1 style="font-family:var(--f-serif);font-size:var(--t-h1);margin-block:.8rem 1.2rem">Thank you.</h1>
+  <p style="color:var(--ink-2);font-size:1.05rem">Your payment went through and the piece is now
+     reserved for you. A confirmation is on its way to the email address you gave at checkout.</p>
+  <p style="color:var(--ink-3);font-size:var(--t-xs);margin-block-start:1.6rem">
+     Order reference <code id="ref">&mdash;</code></p>
+  <p style="margin-block-start:2.4rem">
+     <a class="btn btn--fill" href="{SITE_URL}/">Back to the collection
+       <span class="arw" aria-hidden="true">&#8594;</span></a></p>
+  <p style="color:var(--ink-3);font-size:var(--t-xs);margin-block-start:2rem">
+     Questions about shipping or condition? Reply to the confirmation email and
+     it reaches the collector directly.</p>
+</main>
+<script>
+  var s = new URLSearchParams(location.search).get('oturum') || '';
+  if (s) document.getElementById('ref').textContent = s.slice(-12).toUpperCase();
+</script>
+</body>
+</html>
+'''
 
 
 def static_build(fonts):
@@ -1736,7 +1850,14 @@ def static_build(fonts):
     open(f"{S}/museum/data.js", "w", encoding="utf-8", newline="\n").write(museum_data.js(rows))
 
     open(f"{S}/robots.txt", "w", encoding="utf-8", newline="\n").write(
-        "User-agent: *\nAllow: /\n\nSitemap: " + SITE_URL + "/sitemap.xml\n")
+        "User-agent: *\nAllow: /\nDisallow: /order/\nDisallow: /_kaynak/\n\n"
+        "Sitemap: " + SITE_URL + "/sitemap.xml\n")
+
+    # Odeme sonrasi donus sayfasi. Stripe buraya yollar; siparis numarasi
+    # adreste gelir. Sayfa hicbir gizli bilgi tasimaz.
+    os.makedirs(f"{S}/order", exist_ok=True)
+    open(f"{S}/order/success.html", "w", encoding="utf-8", newline="\n").write(
+        odeme_sonrasi())
     print(f"statik sayfa: {len(rows)} ilan + 4 kategori · sitemap {len(urls)} adres")
 
     # Panelin ayar dosyasi da tek kaynaktan uretilir: data/panel.json.

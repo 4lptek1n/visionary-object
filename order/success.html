@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Order received &middot; Visionary Object</title>
+<link rel="stylesheet" href="../app.css">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<main id="app" tabindex="-1" style="max-inline-size:44rem;margin-inline:auto;
+     padding-block:clamp(4rem,12vh,9rem);padding-inline:var(--gap-m);text-align:center">
+  <p class="eyebrow">Order received</p>
+  <h1 style="font-family:var(--f-serif);font-size:var(--t-h1);margin-block:.8rem 1.2rem">Thank you.</h1>
+  <p style="color:var(--ink-2);font-size:1.05rem">Your payment went through and the piece is now
+     reserved for you. A confirmation is on its way to the email address you gave at checkout.</p>
+  <p style="color:var(--ink-3);font-size:var(--t-xs);margin-block-start:1.6rem">
+     Order reference <code id="ref">&mdash;</code></p>
+  <p style="margin-block-start:2.4rem">
+     <a class="btn btn--fill" href="https://thetimesfigures.com/">Back to the collection
+       <span class="arw" aria-hidden="true">&#8594;</span></a></p>
+  <p style="color:var(--ink-3);font-size:var(--t-xs);margin-block-start:2rem">
+     Questions about shipping or condition? Reply to the confirmation email and
+     it reaches the collector directly.</p>
+</main>
+<script>
+  var s = new URLSearchParams(location.search).get('oturum') || '';
+  if (s) document.getElementById('ref').textContent = s.slice(-12).toUpperCase();
+</script>
+</body>
+</html>

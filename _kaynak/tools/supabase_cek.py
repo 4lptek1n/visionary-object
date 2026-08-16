@@ -241,6 +241,7 @@ def main():
             "kampanya": il.get("_kampanya"),
             "para_birimi": il.get("para_birimi") or "USD",
             "satildi": il["durum"] == "satildi", "rezerve": il["durum"] == "rezerve",
+            "satin_alinabilir": bool(il.get("satin_alinabilir")),
             "one_cikan": bool(il.get("one_cikan")),
             "facet": il["facet"], "kareler": kare_cikti,
         })
