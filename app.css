@@ -263,6 +263,12 @@
   .hero-media img{position:static;inline-size:auto;block-size:auto;
                   max-inline-size:100%;max-block-size:100%;object-fit:contain;
                   filter:drop-shadow(0 26px 40px rgb(34 34 34 / .16))}
+  /* Vitrin fotografi bir eser degil, bir mekan: kirpilarak paneli tam
+     doldurur, cerceve golgesi ve ic bosluk almaz. */
+  .hero-media--room{padding:0;background:var(--ink)}
+  .hero-media--room img{inline-size:100%;block-size:100%;
+                        max-inline-size:none;max-block-size:none;
+                        object-fit:cover;object-position:50% 42%;filter:none}
   .hero-copy{display:flex;flex-direction:column;justify-content:center;
              padding:var(--band-s) var(--pad);gap:var(--s5);background:var(--paper)}
   @media (min-width:960px){.hero-copy{padding-inline:clamp(2rem,3.4vw,4rem)}}

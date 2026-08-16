@@ -60,7 +60,9 @@ function viewMuseum(q) {
       </div>
     </article>`;
   }).join('');
-  const hero = DATA.find(d => d.no === 4) || DATA[0];
+  /* Muze kapagi: sabit "4 numarali ilan" degil, en genis ve en iyi
+     belgelenmis yatay kare. 4 numara arsivlenirse sayfa bozulmuyor. */
+  const hero = bestCover(DATA, false) || DATA[0];
   return `
 <section class="mz-hero" data-io>
   ${cover(hero) ? `<img src="${cover(hero).f}" width="${cover(hero).w}" height="${cover(hero).h}" alt="" aria-hidden="true" fetchpriority="high">` : ''}
@@ -86,7 +88,7 @@ ${protectionBlock()}`;
 function viewCollections() {
   const cards = COLLECTIONS.map((c, i) => {
     const items = collItems(c);
-    const ex = items.find(d => cover(d));
+    const ex = bestCover(items, true);
     return `<a class="coll up" style="--i:${i % 4}" href="#/collection/${c.slug}">
       <figure class="msk" style="--i:${i % 4}">${pic(cover(ex), 'c', '')}</figure>
       <figcaption><b>${esc(c.name)}</b><span>${items.length} ${items.length === 1 ? 'item' : 'items'}</span>

@@ -299,6 +299,10 @@ def js_rows():
             "buy": bool(it.get("satin_alinabilir")),
             # Panelden yazilan SEO aciklamasi; statik sayfalarin meta'sinda kullanilir.
             "seo": (it.get("seo_aciklama") or "").strip(),
+            # Paneldeki "one cikan" isareti ana sayfanin vitrin eserini secer.
+            # Daha once bu alan siteye hic tasinmiyordu, yani panelde
+            # isaretlemek hicbir sey degistirmiyordu.
+            "featured": bool(it.get("one_cikan")),
             "shots": len(img), "roles": roles, "img": img,
             # Kapak her zaman ilk karedir. Ayri bir alan olarak da veriliyor ki
             # kartlar, muze ve arama tek bir kurala baksin.
@@ -503,13 +507,49 @@ const ROLE = { tam:'full view', aci:'angled view', 'olcu-y':'width measurement',
 
 
 /* ---- image helpers: every <img> carries its own intrinsic size ---- */
-const pic = (o, size, alt, extra) => o
-  ? `<img src="${o[size]}" ${size === 'c' ? `srcset="${o.c} 700w, ${o.f} 1500w" sizes="(max-width:760px) 50vw, 25vw"` : ''}
-       width="${o.w}" height="${o.h}" alt="${alt}" ${extra || 'loading="lazy" decoding="async"'}>`
-  : '';
+/* sizes verilirse buyuk 'f' kaynagi da srcset'e girer. Kategori dosemesi
+   gibi genis kutular bunu kullanir; yoksa 640 px'lik 'c' karesi kutuyu
+   dolduramadigi icin gorsel bulanik cikiyordu. */
+const pic = (o, size, alt, extra, sizes) => {
+  if (!o) return '';
+  const set = (size === 'c' || sizes)
+    ? ` srcset="${o.c} 700w, ${o.f} 1500w" sizes="${sizes || '(max-width:760px) 50vw, 25vw'}"`
+    : '';
+  return `<img src="${o[size]}"${set} width="${o.w}" height="${o.h}" alt="${alt}" `
+       + `${extra || 'loading="lazy" decoding="async"'}>`;
+};
 /* Kapak, ilanin ilk karesidir. Panelde kareleri surukleyip sirasini
    degistirmek kapagi degistirir; kart, arama, muze hepsi buraya bakar. */
 const cover = d => d.cov || (d.img && d.img[0]) || null;
+
+/* Vitrin karesi secimi. Onceden buralarda DATA.find kullaniliyordu; o,
+   dizideki ILK ilani aliyordu, yani kapak tamamen rastgeleydi. Artik
+   puanlaniyor: tam gorunum karesi, kutuya uyan en-boy orani ve iyi
+   belgelenmis ilan one cikar. Kategori dosemesi 3/4 dikey kutuya
+   kirptigi icin orada dikey kareler tercih edilir. */
+function coverScore(d, wantPortrait) {
+  const c = cover(d);
+  if (!c) return -1;
+  let p = 0;
+  if (c.rol === 'tam') p += 40;           /* detay ya da imza karesi degil */
+  if (c.src === 'kirpilmis') p += 18;     /* panelde duzeltilmis kare */
+  if (c.w && c.h) {
+    const r = c.w / c.h;
+    p += wantPortrait ? Math.max(0, 26 - Math.abs(r - 0.75) * 34)
+                      : Math.max(0, 26 - Math.abs(r - 1.4) * 20);
+    if (Math.min(c.w, c.h) < 800) p -= 24; /* kutuyu dolduramaz, bulanir */
+  }
+  p += Math.min(10, d.shots || 0);
+  return p;
+}
+function bestCover(list, wantPortrait) {
+  let best = null, bestP = 0;
+  for (const d of list) {
+    const p = coverScore(d, wantPortrait !== false);
+    if (p > bestP) { bestP = p; best = d; }
+  }
+  return best || list.find(d => cover(d)) || null;
+}
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
   ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -561,23 +601,40 @@ function card(d, i) {
 
 /* ---------------- HOME ---------------- */
 function viewHome() {
-  const hero = DATA.find(d => d.no === 47) || DATA[0];
+  /* "One ilan" panelden isaretlenebilir; yoksa en iyi belgelenmis eser. */
+  const hero = DATA.find(d => d.featured) || DATA.find(d => d.no === 47)
+            || bestCover(DATA, false) || DATA[0];
   const fresh = DATA.slice().sort((a, b) => b.no - a.no).slice(0, 10);
   const count = k => DATA.filter(d => d.cat === k).length;
-  const documented = DATA.filter(d => d.doc).length;
-  const shots = DATA.reduce((s, d) => s + d.shots, 0);
 
+  /* Kategori kapaklari: her kategorinin en temsili karesi secilir ve
+     buyuk kaynak kullanilir. Doseme 3/4 dikey kutuya kirptigi icin
+     dikey kareler tercih edilir. */
+  /* Kapak ilani panelden secilebilir (ayar: kapak_tablo / kapak_obje /
+     kapak_belge = ilan slug'i). Asagidakiler gozle secilmis varsayilanlar;
+     ilan arsivlenirse otomatik secim devreye girer. */
+  const KAPAK = { tablo: 'ilan-49', obje: 'ilan-06', belge: 'ilan-195' };
   const tiles = ['tablo', 'obje', 'belge'].map((k, i) => {
-    const ex = DATA.find(d => d.cat === k && cover(d));
+    const istenen = (typeof AYAR !== 'undefined' && AYAR && AYAR['kapak_' + k]) || KAPAK[k];
+    const ex = DATA.find(d => d.slug === istenen && d.cat === k)
+            || bestCover(DATA.filter(d => d.cat === k), true);
+    const n = count(k);
     return `<a class="tile up" style="--i:${i}" href="#/browse?cat=${k}">
-      <figure class="msk" style="--i:${i}">${pic(cover(ex), 'c', esc(ex ? ex.title : ''))}</figure>
-      <figcaption><span class="name">${CATNAME[k]}</span><span class="cnt">${count(k)} ${count(k)===1?'item':'items'}</span></figcaption></a>`;
+      <figure class="msk" style="--i:${i}">${pic(cover(ex), 'f',
+        esc(ex ? ex.title : CATNAME[k]), null,
+        '(max-width:659px) 100vw, (max-width:999px) 52vw, 46vw')}</figure>
+      <figcaption><span class="name">${CATNAME[k]}</span><span class="cnt">${n} ${n===1?'item':'items'}</span></figcaption></a>`;
   }).join('');
 
   return `
 <section class="hero" data-io aria-labelledby="h-hero">
   <div class="hero-in">
-    <div class="hero-media msk">${pic(cover(hero), 'f', esc(hero.title), 'fetchpriority="high" decoding="async"')}</div>
+    <div class="hero-media hero-media--room msk"><img
+      src="img/brand/hero-room-1300.webp"
+      srcset="img/brand/hero-room-900.webp 900w, img/brand/hero-room-1300.webp 1300w, img/brand/hero-room-1619.webp 1619w"
+      sizes="(max-width:959px) 100vw, 60vw" width="1619" height="971"
+      alt="A Visionary Object gallery room: framed paintings on the walls, a gilt vase and a mantel clock on plinths, a Persian carpet on the floor"
+      fetchpriority="high" decoding="async"></div>
     <div class="hero-copy">
       <p class="eyebrow up">${DATA.length} Items For Sale</p>
       <h1 id="h-hero"><span class="rv"><span>Extraordinary Finds,</span></span><span class="rv"><span style="--i:1"><em>One</em> of a Kind.</span></span></h1>
@@ -632,7 +689,7 @@ function viewHome() {
       <a class="lnk up" href="#/collections"><span>View All Collections</span> <span class="arw" aria-hidden="true">&#8594;</span></a>
     </div>
     <div class="colls">${COLLECTIONS.slice(0, 4).map((c, i) => {
-      const items = collItems(c); const ex = items.find(d => cover(d));
+      const items = collItems(c); const ex = bestCover(items, true);
       return `<a class="coll up" style="--i:${i}" href="#/collection/${c.slug}">
         <figure class="msk" style="--i:${i}">${pic(cover(ex), 'c', '')}</figure>
         <figcaption><b>${esc(c.name)}</b><span>${items.length} ${items.length === 1 ? 'item' : 'items'}</span>
@@ -796,7 +853,16 @@ function buildQ(st) {
 }
 function filterList(st) {
   let list = DATA.slice();
-  if (st.special === 'new') list = list.sort((a, b) => b.no - a.no).slice(0, 12);
+  /* "New Arrivals" burada 12'de sabitlenmisti: katalogda 270 eser varken
+     sayfa hep "12 New Arrivals" yaziyordu. Artik katalog numarasina gore
+     en yeni AYAR.yeni_adet eser gosterilir (varsayilan 60) ve katalog
+     buyudukce kendiliginden buyur. */
+  if (st.special === 'new') {
+    const varsayilan = Math.min(list.length, Math.max(24, Math.round(list.length * 0.25)));
+    const n = parseInt((typeof AYAR !== 'undefined' && AYAR && AYAR.yeni_adet) || 0, 10);
+    const adet = n > 0 ? Math.min(n, list.length) : varsayilan;
+    list = list.sort((a, b) => b.no - a.no).slice(0, adet);
+  }
   if (['rugs','lighting','sculpture','museum'].includes(st.special)) list = [];
   FGROUPS.forEach(g => {
     const sel = st.f[g.id];
@@ -879,8 +945,10 @@ function viewBrowse(q) {
   const tiles2 = (SUBTILES[curCat] || SUBTILES['']).map(([g, v, label]) => {
     const grp = FGROUPS.find(x => x.id === g);
     const pool = DATA.filter(d => (!curCat || ['rugs','lighting','sculpture','new','museum'].includes(curCat) || d.cat === curCat) && grp.test(d, v));
-    const withImg = pool.filter(d => cover(d));
-    const ex = withImg.find(d => !usedTile.has(d.no)) || withImg[0];
+    /* Her kutuya farkli bir eser dussun, ama secim rastgele degil:
+       en temsili kare kazanir. Onceki hal dizideki ilk ilani aliyordu. */
+    const withImg = pool.filter(d => cover(d) && !usedTile.has(d.no));
+    const ex = bestCover(withImg.length ? withImg : pool.filter(d => cover(d)), true);
     if (ex) usedTile.add(ex.no);
     const href = '#/browse?' + (curCat && g !== 'cat' ? 'cat=' + curCat + '&' : '') + g + '=' + encodeURIComponent(v);
     return `<a class="subcat" href="${href}">
@@ -900,7 +968,7 @@ function viewBrowse(q) {
            Contact the seller for early access, or browse the rest of the collection.</p>
         <p style="margin-block-start:1.2rem">
           <button class="btn btn--fill" type="button" data-ask>Ask What Is Coming <span class="arw" aria-hidden="true">&#8594;</span></button>
-          <a class="btn btn--line" href="#/browse">Browse All 49 Items</a></p></div>`
+          <a class="btn btn--line" href="#/browse">Browse All ${DATA.length} Items</a></p></div>`
     : `<div class="empty"><h2>No Items Found</h2>
         <p>${st.term ? `Nothing in the collection matches &ldquo;${esc(st.term)}&rdquo;.` : 'No item matches every filter you have chosen.'}
            Try fewer filters, or browse the whole collection of ${DATA.length} pieces.</p>
@@ -916,7 +984,7 @@ function viewBrowse(q) {
   ${empty}
   <section class="pdp-more" data-io>
     <h2>In the Meantime</h2>
-    <div class="grid-works">${DATA.slice(0, 4).map(card).join('')}</div>
+    <div class="grid-works">${DATA.slice().sort((a, b) => b.no - a.no).slice(0, 4).map(card).join('')}</div>
   </section>
 </div>`;
 
@@ -1639,6 +1707,9 @@ APP_JS += STATE_JS
 APP_JS += r"""
 fillMegaImages();
 syncCounts();
+/* Mobil cekmecedeki "All ... Items" sayisi kabukta sabit yazilmisti ve
+   katalog 49'dan 270'e cikinca yalan soyluyordu. Artik veriden gelir. */
+document.querySelectorAll('[data-vo-adet]').forEach(el => { el.textContent = DATA.length; });
 window.addEventListener('hashchange', render);
 render();
 booted = true;

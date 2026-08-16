@@ -20,7 +20,7 @@
       <li><a href="museum/index.html">The Museum</a></li>
     </ul>
     <ul class="navlist navlist--s">
-      <li><a href="#/browse">All 49 Items</a></li>
+      <li><a href="#/browse">All <span data-vo-adet>&#8230;</span> Items</a></li>
       <li><a href="#/collections">Collections</a></li>
       <li><a href="#/creators">Creators</a></li>
       <li><a href="#/favorites">Favorites</a></li>
