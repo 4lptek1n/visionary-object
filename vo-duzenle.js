@@ -80,6 +80,7 @@
         (duzenle ? "Duzenleme acik" : "Duzenlemeyi ac") + "</button>" +
       '<button id="vo-gorsel">Gorseller</button>' +
       '<button id="vo-durum">Durum</button>' +
+      '<button id="vo-kampanya">Kampanya</button>' +
       '<span class="sag">' +
         (bekleyen ? '<span class="bekleyen">' + bekleyen + " degisiklik yayinlanmadi</span>" : "") +
         '<button id="vo-yayinla">Yayinla</button>' +
@@ -97,6 +98,7 @@
     };
     c.querySelector("#vo-gorsel").onclick = gorselPaneli;
     c.querySelector("#vo-durum").onclick = durumPaneli;
+    c.querySelector("#vo-kampanya").onclick = kampanyaPaneli;
     c.querySelector("#vo-yayinla").onclick = yayinla;
     c.querySelector("#vo-cikis").onclick = function () {
       sb.auth.signOut().then(function () { location.reload(); });
@@ -332,6 +334,50 @@
         Promise.resolve(kaydet(d)).then(function (ok) { if (ok !== false) { d.close(); d.remove(); } });
       } else { d.close(); d.remove(); }
     });
+  }
+
+  /* ------------------------------------------------------------- kampanya */
+  function kampanyaPaneli() {
+    sb.from("kampanyalar").select("*").order("oncelik", { ascending: false }).then(function (c) {
+      if (c.error) return uyari("Kampanya tablosu yok. 04_kampanya.sql dosyasini calistir.", true);
+      var liste = c.data || [];
+      var govde = liste.length ? liste.map(function (k) {
+        return '<div style="border:1px solid #E0DDCC;padding:.75rem;margin-block-end:.6rem;' +
+          'display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">' +
+          '<b style="font-weight:500;flex:1">' + metin(k.ad) + '</b>' +
+          '<span style="font-size:.8125rem;color:#5C5A50">' +
+            (k.tur === "yuzde" ? k.deger + "%" : "-" + k.deger) + " &middot; " +
+            (k.kapsam === "hepsi" ? "butun koleksiyon" : k.kapsam) + "</span>" +
+          '<label style="display:flex;gap:.35rem;align-items:center;font-size:.8125rem">' +
+            '<input type="checkbox" data-k-aktif="' + k.id + '"' + (k.aktif ? " checked" : "") + '>Acik</label>' +
+          '<label style="display:flex;gap:.35rem;align-items:center;font-size:.8125rem">' +
+            '<input type="checkbox" data-k-serit="' + k.id + '"' + (k.serit_aktif ? " checked" : "") + '>Serit</label>' +
+          "</div>";
+      }).join("") : "<p>Henuz kampanya yok.</p>";
+
+      kutuAc("Kampanyalar", govde +
+        '<p style="font-size:.8125rem;color:#5C5A50;margin-block-start:.75rem">' +
+        'Yeni kampanya acmak, kapsam ve tarih vermek icin Gelismis > Kampanyalar.</p>',
+        null, function (kutu) {
+          kutu.querySelectorAll("[data-k-aktif],[data-k-serit]").forEach(function (el) {
+            el.onchange = function () {
+              var id = Number(el.dataset.kAktif || el.dataset.kSerit);
+              var yama = el.dataset.kAktif ? { aktif: el.checked } : { serit_aktif: el.checked };
+              sb.from("kampanyalar").update(yama).eq("id", id).then(function (r) {
+                if (r.error) return uyari(r.error.message, true);
+                bekleyen++; cubukCiz();
+                uyari("Kampanya guncellendi. Fiyatlarin degismesi icin Yayinla.");
+              });
+            };
+          });
+        });
+    });
+  }
+
+  function metin(t) {
+    var d = document.createElement("span");
+    d.textContent = t == null ? "" : String(t);
+    return d.innerHTML;
   }
 
   /* --------------------------------------------------------------- yayinla */

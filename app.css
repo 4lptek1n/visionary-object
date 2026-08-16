@@ -1296,6 +1296,27 @@
   #app{min-block-size:100dvh}
   #app:empty{min-block-size:100dvh}
 }
+
+@layer blocks{
+  .p-now{font-weight:600;font-variant-numeric:tabular-nums}
+  .p-was{color:var(--ink-3);text-decoration:line-through;
+         text-decoration-thickness:1px;font-variant-numeric:tabular-nums;margin-inline-start:.35rem}
+  .p-off{font-style:normal;font-size:.78em;letter-spacing:.06em;text-transform:uppercase;
+         color:var(--ink);border:1px solid var(--line-ui);padding:.05em .4em;
+         margin-inline-start:.4rem;white-space:nowrap}
+  .p-sold,.p-res{font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:.86em}
+  .p-sold{color:var(--ink-3)}
+  .askprice .p-now{font-size:1.06em}
+  .askprice s,.askprice em{font-size:.82em}
+  .work .price s,.work .price em{font-size:.9em}
+
+  .kmp{display:flex;align-items:center;justify-content:center;gap:.6rem;flex-wrap:wrap;
+       background:var(--ink);color:var(--on-ink);padding:.55rem var(--pad);
+       font-size:.82rem;letter-spacing:.02em;text-align:center}
+  .kmp b{font-weight:500;letter-spacing:.1em;text-transform:uppercase;font-size:.72rem}
+  .kmp a{color:inherit;text-underline-offset:3px}
+  @media (max-width:640px){ .kmp{font-size:.76rem;padding-inline:1rem} }
+}
 :root{--grain-src:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.85'/%3E%3C/svg%3E")}
 /* --- taranabilir statik sayfalar --- */
 body.stat{background:var(--bg);color:var(--ink);font-family:var(--f-sans);}

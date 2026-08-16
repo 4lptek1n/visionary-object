@@ -109,6 +109,7 @@ function girisEkrani(hataMesaji = "") {
 const MENU = [
   ["ilanlar",     "Ilanlar",      "▤"],
   ["fiyatlar",    "Fiyatlar",     "$"],
+  ["kampanyalar", "Kampanyalar",  "%"],
   ["sayfalar",    "Site metinleri", "¶"],
   ["sanatcilar",  "Sanatcilar",   "✎"],
   ["ayarlar",     "Ayarlar",      "⚙"],
@@ -942,6 +943,7 @@ function yonlendir() {
   const ilan = h.match(/^#\/ilan\/(\d+)/);
   if (ilan) return ilanSayfasi(Number(ilan[1]));
   if (h.startsWith("#/fiyatlar")) return fiyatSayfasi();
+  if (h.startsWith("#/kampanyalar")) return kampanyaSayfasi();
   if (h.startsWith("#/sayfalar")) return sayfalarSayfasi();
   if (h.startsWith("#/sanatcilar")) return sanatcilarSayfasi();
   if (h.startsWith("#/ayarlar")) return ayarlarSayfasi();
@@ -989,3 +991,161 @@ sb.auth.onAuthStateChange((olay) => {
 });
 
 baslat();
+
+/* ------------------------------------------------------------- kampanyalar */
+const KAPSAM = [["hepsi","Butun koleksiyon"],["kategori","Secili kategoriler"],
+                ["sanatci","Secili sanatcilar"],["secili","Secili ilanlar"]];
+
+function tarihAlan(d) { return d ? String(d).slice(0, 16) : ""; }
+
+async function kampanyaSayfasi() {
+  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "kampanyalar");
+  const gvd = document.getElementById("icerik");
+  const [{ data, error }, { data: ilan }] = await Promise.all([
+    sb.from("kampanyalar").select("*").order("oncelik", { ascending: false }),
+    sb.from("ilanlar").select("kat,sanatci,fiyat,fiyat_gizli,durum"),
+  ]);
+  if (error) return gvd.innerHTML = `<p class="uyari-serit uyari-serit--hata">${esc(error.message)}
+    Kampanya tablosu yoksa <code>supabase/04_kampanya.sql</code> dosyasini calistir.</p>`;
+
+  const fiyatli = (ilan || []).filter(x => x.fiyat != null && !x.fiyat_gizli && x.durum !== "satildi").length;
+  const sanatcilar = [...new Set((ilan || []).map(x => (x.sanatci || "").trim()).filter(Boolean))].sort();
+
+  gvd.innerHTML = `
+  <div class="ustbilgi">
+    <div><h1>Kampanyalar</h1>
+      <p>Indirim kurallari. Bir ilana birden fazla kampanya uyarsa indirimler ust uste binmez;
+         oncelik sirasi yuksek olan uygulanir. Fiyati girilmemis ya da satilmis ilanlar indirime girmez.</p></div>
+    <div class="eylemler"><button class="btn" id="yeni-kampanya">Yeni kampanya</button></div>
+  </div>
+  <div class="ozet">
+    <div><b>${(data || []).filter(k => k.aktif).length}</b><span>Acik kampanya</span></div>
+    <div><b>${fiyatli}</b><span>Indirime girebilecek ilan</span></div>
+    <div><b>${(ilan || []).length - fiyatli}</b><span>Fiyati yok ya da satildi</span></div>
+  </div>
+  ${!(data || []).length ? `<div class="kutu bos">Henuz kampanya yok.</div>` :
+    data.map(k => kampanyaKart(k, sanatcilar)).join("")}`;
+
+  gvd.querySelectorAll("[data-kaydet-k]").forEach(b => b.addEventListener("click", async () => {
+    const id = Number(b.dataset.kaydetK);
+    const kok = gvd.querySelector(`[data-kampanya="${id}"]`);
+    const al = ad => kok.querySelector(`[name="${ad}"]`);
+    const secili = [...kok.querySelectorAll("[data-kapsam-deger]:checked")].map(x => x.value);
+    const elle = al("kapsam_elle").value.split(",").map(x => x.trim()).filter(Boolean);
+    const yama = {
+      ad: al("ad").value.trim(),
+      tur: al("tur").value, deger: Number(al("deger").value),
+      kapsam: al("kapsam").value,
+      kapsam_deger: al("kapsam").value === "hepsi" ? [] : (secili.length ? secili : elle),
+      baslangic: al("baslangic").value ? new Date(al("baslangic").value).toISOString() : null,
+      bitis: al("bitis").value ? new Date(al("bitis").value).toISOString() : null,
+      aktif: al("aktif").checked,
+      rozet: al("rozet").value.trim(),
+      serit_metin: al("serit_metin").value.trim(),
+      serit_etiket: al("serit_etiket").value.trim(),
+      serit_aktif: al("serit_aktif").checked,
+      oncelik: Number(al("oncelik").value) || 0,
+      en_dusuk: al("en_dusuk").value.trim() === "" ? null : Number(al("en_dusuk").value),
+    };
+    if (!yama.ad) return bildir("Kampanyaya bir ad ver.", true);
+    if (!(yama.deger > 0)) return bildir("Indirim degeri sifirdan buyuk olmali.", true);
+    if (/[–—]/.test(yama.serit_metin + yama.rozet))
+      return bildir("Uzun tire kullanilamaz.", true);
+    const { error: e2 } = await sb.from("kampanyalar").update(yama).eq("id", id);
+    bildir(e2 ? e2.message : "Kampanya kaydedildi. Sitede gorunmesi icin Yayinla.", !!e2);
+  }));
+
+  gvd.querySelectorAll("[data-sil-k]").forEach(b => b.addEventListener("click", async () => {
+    if (!await sor("Kampanya silinsin mi?")) return;
+    await sb.from("kampanyalar").delete().eq("id", Number(b.dataset.silK));
+    kampanyaSayfasi();
+  }));
+
+  gvd.querySelectorAll("[name=kapsam]").forEach(sel => sel.addEventListener("change", () => {
+    const kok = sel.closest("[data-kampanya]");
+    kok.querySelectorAll("[data-kapsam-kutu]").forEach(x =>
+      x.hidden = x.dataset.kapsamKutu !== sel.value);
+  }));
+
+  document.getElementById("yeni-kampanya").addEventListener("click", async () => {
+    const { error: e3 } = await sb.from("kampanyalar").insert({
+      ad: "Yeni kampanya", tur: "yuzde", deger: 10, kapsam: "hepsi", aktif: false });
+    if (e3) return bildir(e3.message, true);
+    kampanyaSayfasi();
+  });
+}
+
+function kampanyaKart(k, sanatcilar) {
+  const kd = k.kapsam_deger || [];
+  const kat = KATLAR.map(([v, ad]) =>
+    `<label><input type="checkbox" data-kapsam-deger value="${v}" ${kd.includes(v) ? "checked" : ""}>${esc(ad)}</label>`).join("");
+  const snt = sanatcilar.slice(0, 40).map(a =>
+    `<label><input type="checkbox" data-kapsam-deger value="${esc(a)}" ${kd.includes(a) ? "checked" : ""}>${esc(a)}</label>`).join("");
+  return `
+  <div class="kutu" data-kampanya="${k.id}" style="padding:1.25rem;margin-block-end:1rem">
+    <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;margin-block-end:1rem">
+      <h3>${esc(k.ad)}</h3>
+      <span class="rozet ${k.aktif ? "rozet--yayinda" : "rozet--taslak"}"><i></i>${k.aktif ? "Acik" : "Kapali"}</span>
+    </div>
+    <div class="uclu">
+      <div class="alan"><label>Kampanya adi</label><input name="ad" value="${esc(k.ad)}"></div>
+      <div class="alan"><label>Indirim turu</label>
+        <select name="tur">
+          <option value="yuzde" ${k.tur === "yuzde" ? "selected" : ""}>Yuzde</option>
+          <option value="tutar" ${k.tur === "tutar" ? "selected" : ""}>Sabit tutar</option>
+        </select></div>
+      <div class="alan"><label>Deger</label>
+        <input name="deger" type="number" step="any" value="${k.deger}">
+        <p class="ipucu">Yuzde secildiyse 15 yazarsan yuzde on bes iner.</p></div>
+    </div>
+    <div class="alan">
+      <label>Kimlere uygulanacak</label>
+      <select name="kapsam" style="max-inline-size:340px">
+        ${KAPSAM.map(([v, ad]) => `<option value="${v}" ${k.kapsam === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}
+      </select>
+      <div data-kapsam-kutu="kategori" ${k.kapsam === "kategori" ? "" : "hidden"} style="margin-block-start:.6rem">
+        <div class="etiketler">${kat}</div></div>
+      <div data-kapsam-kutu="sanatci" ${k.kapsam === "sanatci" ? "" : "hidden"} style="margin-block-start:.6rem">
+        <div class="etiketler">${snt || "<span class='ipucu'>Kayitli sanatci yok.</span>"}</div></div>
+      <div data-kapsam-kutu="secili" ${k.kapsam === "secili" ? "" : "hidden"} style="margin-block-start:.6rem"></div>
+      <div class="alan" style="margin-block-start:.6rem">
+        <label>Elle liste</label>
+        <input name="kapsam_elle" value="${esc(kd.join(', '))}"
+               placeholder="ornek: ilan-59, ilan-114">
+        <p class="ipucu">Yukaridan secim yaparsan bu alan yok sayilir.</p>
+      </div>
+    </div>
+    <div class="uclu">
+      <div class="alan"><label>Baslangic</label>
+        <input name="baslangic" type="datetime-local" value="${tarihAlan(k.baslangic)}"></div>
+      <div class="alan"><label>Bitis</label>
+        <input name="bitis" type="datetime-local" value="${tarihAlan(k.bitis)}">
+        <p class="ipucu">Bos birakirsan suresiz.</p></div>
+      <div class="alan"><label>Oncelik</label>
+        <input name="oncelik" type="number" value="${k.oncelik || 0}">
+        <p class="ipucu">Iki kampanya ayni ilana uyarsa buyuk olan kazanir.</p></div>
+    </div>
+    <div class="ikili">
+      <div class="alan"><label>Urun uzerindeki etiket</label>
+        <input name="rozet" value="${esc(k.rozet || "")}" placeholder="Summer selection"></div>
+      <div class="alan"><label>Indirim sonrasi en dusuk fiyat</label>
+        <input name="en_dusuk" type="number" step="any" value="${k.en_dusuk ?? ""}">
+        <p class="ipucu">Bos birakilabilir.</p></div>
+    </div>
+    <div class="ikili">
+      <div class="alan"><label>Sitenin ust seridi</label>
+        <input name="serit_metin" value="${esc(k.serit_metin || "")}"
+               placeholder="Fifteen percent off the whole collection until the end of the month"></div>
+      <div class="alan"><label>Seritteki kucuk etiket</label>
+        <input name="serit_etiket" value="${esc(k.serit_etiket || "")}" placeholder="Summer"></div>
+    </div>
+    <div class="etiketler" style="margin-block-end:1rem">
+      <label><input type="checkbox" name="aktif" ${k.aktif ? "checked" : ""}>Kampanya acik</label>
+      <label><input type="checkbox" name="serit_aktif" ${k.serit_aktif ? "checked" : ""}>Ust seridi goster</label>
+    </div>
+    <div class="eylemler">
+      <button class="btn btn--kucuk" data-kaydet-k="${k.id}">Kaydet</button>
+      <button class="btn btn--tehlike btn--kucuk" data-sil-k="${k.id}">Sil</button>
+    </div>
+  </div>`;
+}
