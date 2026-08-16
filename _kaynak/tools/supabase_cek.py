@@ -232,6 +232,8 @@ def main():
             "baski": il["baski"], "ref": il["ref"], "galeri_adi": il["galeri_adi"],
             "etiket": il["etiket"], "biyografi": il["biyografi"], "not": il["aciklama_not"],
             "belge": il["belge"], "kaynak_dosya": il["kaynak_dosya"],
+            "seo_baslik": il.get("seo_baslik") or "",
+            "seo_aciklama": il.get("seo_aciklama") or "",
             "olcu": ({"w": float(il["olcu_w"]), "h": float(il["olcu_h"]),
                       "nesi": il["olcu_nesi"] or "outside of frame"}
                      if il["olcu_w"] and il["olcu_h"] else None),

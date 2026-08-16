@@ -296,6 +296,8 @@ def js_rows():
             "sold": bool(it.get("satildi")), "reserved": bool(it.get("rezerve")),
             # Tek tikla satis bu eserde acik mi. Odeme genel ayari ayrica bakilir.
             "buy": bool(it.get("satin_alinabilir")),
+            # Panelden yazilan SEO aciklamasi; statik sayfalarin meta'sinda kullanilir.
+            "seo": (it.get("seo_aciklama") or "").strip(),
             "shots": len(img), "roles": roles, "img": img,
             # Kapak her zaman ilk karedir. Ayri bir alan olarak da veriliyor ki
             # kartlar, muze ve arama tek bir kurala baksin.
@@ -1119,7 +1121,7 @@ function viewItem(slug) {
         <p class="kicker">${ICON_RULER} One of a Kind &middot; VO-${String(d.no).padStart(2, '0')}</p>
         <div class="buy-save">
           <button class="iconb fav" type="button" data-slug="${d.slug}" data-on="${saved ? 1 : 0}" aria-label="Save ${esc(d.title)} to favorites">${ICON_HEART}</button>
-          <button class="iconb" type="button" data-folder aria-label="Save to a folder">${ICON_FOLDER}</button>
+
         </div>
       </div>
       <p class="creatorline" data-vo="sanatci">${d.creator
@@ -1132,7 +1134,7 @@ function viewItem(slug) {
         ${satinAlinirMi(d) ? `<button class="btn btn--fill" type="button" data-buy="${d.slug}">Buy Now <span class="arw" aria-hidden="true">&#8594;</span></button>
         <button class="btn btn--line" type="button" data-ask>Contact Seller</button>`
         : `<button class="btn btn--fill" type="button" data-ask>Contact Seller <span class="arw" aria-hidden="true">&#8594;</span></button>
-        <button class="btn btn--line" type="button" data-ask>Suggest a Price</button>`}
+        <button class="btn btn--line" type="button" data-ask="teklif">Suggest a Price</button>`}
         <button class="btn btn--ghost" type="button" data-cart="${d.slug}">${inCart ? 'In Your Cart' : 'Add to Cart'}</button>
       </div>
       <div class="info-card">
@@ -1449,7 +1451,11 @@ function wire(view) {
       if (e.key === 'ArrowRight') { show(cur + 1); e.preventDefault(); }
       if (e.key === 'ArrowLeft') { show(cur - 1); e.preventDefault(); }
     });
-    $$('[data-ask]').forEach(b => b.addEventListener('click', () => $('#enq').showModal()));
+    $$('[data-ask]').forEach(b => b.addEventListener('click', () => {
+      /* Hangi dugmeden acildiysa talep turu o olur: bos = bilgi, teklif = teklif */
+      $('#enqForm').dataset.tur = b.getAttribute('data-ask') || 'bilgi';
+      $('#enq').showModal();
+    }));
     const zb = $('#zoomBtn');
     const all = imgs.map(b => b.dataset.full);
     if (zb) zb.addEventListener('click', () => lbOpen(all, cur));
@@ -1499,12 +1505,6 @@ function wire(view) {
       window.addEventListener('scroll', () => { if (lens.hasAttribute('data-on')) olc(); },
                               { passive: true });
     }
-    const fold = $('[data-folder]');
-    if (fold) fold.addEventListener('click', () => $('#auth') && (
-      document.getElementById('authTitle').textContent = 'Save to a folder',
-      document.getElementById('authBody').innerHTML =
-        '<p>Folders let you group pieces you are considering. On this prototype your saved items are kept for this visit under Favorites.</p>',
-      $('#auth').showModal()));
   }
 }
 
@@ -1639,6 +1639,39 @@ syncCounts();
 window.addEventListener('hashchange', render);
 render();
 booted = true;
+
+/* ---------------- sayac (cerezsiz, birinci taraf) ----------------
+   Hicbir kisisel veri toplanmaz: yalnizca sayfa yolu, geldigi site ve gun.
+   Cerez yok, parmak izi yok, IP kaydi yok. Ayni sayfa ayni oturumda bir kez
+   sayilir. Panele giris yapmis olan (yani site sahibi) sayilmaz. */
+(function () {
+  const a = window.VO_AYAR;
+  if (!a || !a.URL || String(a.URL).indexOf('BURAYA') === 0) return;
+  let yonetici = false;
+  try {
+    const ref = a.URL.replace('https://', '').split('.')[0];
+    yonetici = !!localStorage.getItem('sb-' + ref + '-auth-token');
+  } catch (e) { /* depolama kapali: ziyaretci say */ }
+  if (yonetici) return;
+  const gorulen = new Set();
+  function say() {
+    let yol = location.hash && location.hash.length > 1 ? location.hash : '#/';
+    yol = yol.split('?')[0].slice(0, 180);
+    if (gorulen.has(yol)) return;
+    gorulen.add(yol);
+    let kaynak = '';
+    try { kaynak = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) {}
+    if (kaynak === location.hostname) kaynak = '';
+    fetch(a.URL + '/rest/v1/ziyaretler', {
+      method: 'POST', keepalive: true,
+      headers: { 'Content-Type': 'application/json', apikey: a.ANAHTAR,
+                 Authorization: 'Bearer ' + a.ANAHTAR, Prefer: 'return=minimal' },
+      body: JSON.stringify({ yol: yol, kaynak: kaynak.slice(0, 120) })
+    }).catch(function () {});
+  }
+  say();
+  window.addEventListener('hashchange', say);
+})();
 """
 
 
@@ -1858,6 +1891,34 @@ def static_build(fonts):
     os.makedirs(f"{S}/order", exist_ok=True)
     open(f"{S}/order/success.html", "w", encoding="utf-8", newline="\n").write(
         odeme_sonrasi())
+
+    # GitHub Pages, adi 404.html olan dosyayi her bilinmeyen adreste gosterir.
+    # Bu olmadan ziyaretci GitHub'in kendi hata sayfasina duser.
+    open(f"{S}/404.html", "w", encoding="utf-8", newline="\n").write(f'''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Page not found &middot; Visionary Object</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<main id="app" tabindex="-1" style="max-inline-size:44rem;margin-inline:auto;
+     padding-block:clamp(4rem,14vh,10rem);padding-inline:var(--gap-m);text-align:center">
+  <p class="eyebrow">404</p>
+  <h1 style="font-family:var(--f-serif);font-size:var(--t-h1);margin-block:.8rem 1.2rem">This page is not in the collection.</h1>
+  <p style="color:var(--ink-2)">The address may have changed, or the piece may have moved.
+     Everything that is here can be reached from the gallery.</p>
+  <p style="margin-block-start:2.2rem">
+    <a class="btn btn--fill" href="{SITE_URL}/">Back to the collection <span class="arw" aria-hidden="true">&#8594;</span></a>
+    <a class="btn btn--line" href="{SITE_URL}/category/all.html" style="margin-inline-start:.5rem">All items</a></p>
+</main>
+</body>
+</html>
+''')
     print(f"statik sayfa: {len(rows)} ilan + 4 kategori · sitemap {len(urls)} adres")
 
     # Panelin ayar dosyasi da tek kaynaktan uretilir: data/panel.json.

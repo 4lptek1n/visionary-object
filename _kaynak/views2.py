@@ -141,7 +141,7 @@ function viewFavorites() {
       ? `<h2 class="count" style="margin-block:var(--gap-s) var(--gap-m)"><b>${items.length}</b> Saved ${items.length === 1 ? 'Item' : 'Items'}</h2>
          <div class="grid-works">${items.map(card).join('')}</div>`
       : `<div class="statepage"><h2 style="font-size:var(--t-h3)">Nothing saved yet</h2>
-         <p>Tap the heart on any listing to keep it here while you decide. Saved items stay for this visit.</p>
+         <p>Tap the heart on any listing to keep it here while you decide. Saved items stay on this device.</p>
          <a class="btn btn--fill" href="#/browse">Shop the Collection <span class="arw" aria-hidden="true">→</span></a></div>`}
   </div>`;
 }
@@ -149,6 +149,12 @@ function viewFavorites() {
 /* ---------------- CART ---------------- */
 function viewCart() {
   const items = DATA.filter(d => CART.has(d.slug));
+  /* Fiyati girilmis eserler gercek fiyatiyla gorunur ve toplanir; fiyati
+     gizli olanlar teklife kalir. Iki durum ayni sepette durabilir. */
+  const fiyatli = items.filter(d => d.price != null && !d.sold);
+  const toplam = fiyatli.reduce((t, d) => t + d.price, 0);
+  const cur = (fiyatli[0] || {}).cur;
+  const alinabilir = items.filter(d => satinAlinirMi(d));
   return `<div class="shell">
     <nav class="crumbs" aria-label="Breadcrumbs"><a href="#/">Home</a><i>/</i><span aria-current="page">Cart</span></nav>
     <div class="coll-top"><h1>Your Cart</h1></div>
@@ -158,14 +164,19 @@ function viewCart() {
           ${pic(cover(d), 't', '')}
           <div><b><a href="#/item/${d.slug}">${esc(d.title)}</a></b>
             <span>${esc(d.creator || 'Unknown')} · VO-${String(d.no).padStart(2, '0')}</span>
-            <span>Price Upon Request</span></div>
+            <span>${fiyatHtml(d)}</span>
+            ${satinAlinirMi(d) ? `<span style="margin-block-start:.3rem"><button class="btn btn--kucuk btn--line" type="button" data-buy="${d.slug}">Buy Now</button></span>` : ''}</div>
           <button type="button" data-uncart="${d.slug}">Remove</button></div>`).join('')}</div>
         <aside class="filters">
           <div class="info-card"><h2>Order Summary</h2>
-            <p>${items.length} ${items.length === 1 ? 'item' : 'items'}</p>
-            <p><b>Price Upon Request</b></p>
-            <p style="font-size:var(--t-xs);color:var(--ink-3)">Shipping is quoted per item once the destination is known.</p>
-            <p style="margin-block-start:1rem"><button class="btn btn--fill" type="button" data-ask style="inline-size:100%">Request a Quote <span class="arw" aria-hidden="true">→</span></button></p>
+            <p>${items.length} ${items.length === 1 ? 'item' : 'items'}${fiyatli.length && fiyatli.length < items.length ? `, ${fiyatli.length} priced` : ''}</p>
+            <p><b>${fiyatli.length ? paraYaz(toplam, cur) + (fiyatli.length < items.length ? ' + quote' : '') : 'Price Upon Request'}</b></p>
+            <p style="font-size:var(--t-xs);color:var(--ink-3)">${alinabilir.length === 1 && items.length === 1
+              ? 'One-of-a-kind pieces are checked out one at a time.'
+              : 'Each piece is one of a kind; ask once and we quote the lot together.'}</p>
+            ${alinabilir.length === 1 && items.length === 1
+              ? `<p style="margin-block-start:1rem"><button class="btn btn--fill" type="button" data-buy="${alinabilir[0].slug}" style="inline-size:100%">Checkout <span class="arw" aria-hidden="true">→</span></button></p>`
+              : `<p style="margin-block-start:1rem"><button class="btn btn--fill" type="button" data-ask="teklif" style="inline-size:100%">Request a Quote <span class="arw" aria-hidden="true">→</span></button></p>`}
           </div>
           <div class="info-card"><h2>${ICON_SHIELD} Shop With Confidence</h2>
             <p>Authenticity Guaranteed, Money Back Guarantee, 24-Hour Cancellation.</p></div>
@@ -182,7 +193,7 @@ function viewAccount() {
   return `<div class="shell"><div class="statepage">
     <p class="eyebrow" style="justify-content:center">Account</p>
     <h1>You do not need an account to buy</h1>
-    <p>There is one seller here, and everything happens by message: you ask, we answer, we agree a price, we ship. Your favorites and cart are kept for this visit without a login.</p>
+    <p>There is one seller here, and everything happens by message: you ask, we answer, we agree a price, we ship. Your favorites and cart are saved on this device without a login.</p>
     <p style="margin-block-start:1rem">If you would like to be told when Persian rugs, lighting and sculpture are listed, leave your email in the footer.</p>
     <a class="btn btn--fill" href="#/info/how-it-works">How It Works <span class="arw" aria-hidden="true">→</span></a>
   </div></div>`;

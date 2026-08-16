@@ -3,10 +3,23 @@
 1stDibs has: typeahead, cart drawer, quick view, lightbox, cookie bar, auth."""
 
 STATE_JS = r"""
-/* ---------------- session state (in memory, no storage) ---------------- */
-const FAV = new Set();
-const CART = new Set();
+/* ---------------- state (localStorage'da kalici) ----------------
+   Favoriler ve sepet ziyaretler arasi korunur. Kisisel veri degil,
+   yalnizca eser kodlari; cerez de degil, bu yuzden cerez cubugundan
+   bagimsiz. Depolama kapali tarayicida sessizce bellege duser. */
+function stateOku(ad) {
+  try { return new Set(JSON.parse(localStorage.getItem(ad) || '[]')); }
+  catch (e) { return new Set(); }
+}
+const FAV = stateOku('vo-fav');
+const CART = stateOku('vo-cart');
 const RECENT = [];
+function stateSakla() {
+  try {
+    localStorage.setItem('vo-fav', JSON.stringify([...FAV]));
+    localStorage.setItem('vo-cart', JSON.stringify([...CART]));
+  } catch (e) { /* depolama yoksa oturumluk calisir */ }
+}
 function remember(slug) {
   const i = RECENT.indexOf(slug);
   if (i > -1) RECENT.splice(i, 1);
@@ -25,6 +38,7 @@ function badge(id, n, one, many) {
 function syncCounts() {
   badge('favCount', FAV.size, 'item', 'Favorites');
   badge('cartCount', CART.size, 'item', 'Cart');
+  stateSakla();
 }
 
 /* ---------------- favorites ---------------- */
@@ -297,23 +311,36 @@ document.addEventListener('click', e => {
   document.getElementById('authBody').innerHTML = up
     ? `<p>You do not need an account to buy here. There is one seller, and everything happens by message: you ask, we answer, we agree a price, we ship.</p>
        <p>Leave your email in the footer and we will tell you when new pieces are listed, including rugs, carpets and lighting.</p>`
-    : `<p>There are no accounts on this site. Your favorites and cart are kept for this visit without a login, and every enquiry is answered by the collector personally.</p>
+    : `<p>There are no accounts on this site. Your favorites and cart are saved on this device without a login, and every enquiry is answered by the collector personally.</p>
        <p>If you have an order in progress, reply to the email thread you already have with the seller.</p>`;
   authDlg.showModal();
 });
 authDlg.addEventListener('click', e => { if (e.target.closest('[data-close]')) authDlg.close(); });
 
-/* ---------------- newsletter ---------------- */
+/* ---------------- newsletter ----------------
+   Kayit gercek: bulten tablosuna yazilir, panelde Gelen kutusunda gorunur.
+   Ayni e-posta ikinci kez gelirse veritabani sessizce yoksayar. */
 const nf = document.getElementById('newsForm');
 if (nf) nf.addEventListener('submit', e => {
   e.preventDefault();
-  const v = document.getElementById('nl').value.trim();
+  const v = document.getElementById('nl').value.trim().toLowerCase();
   const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
   const note = document.getElementById('newsNote');
   document.getElementById('nl').setAttribute('aria-invalid', String(!ok));
-  note.textContent = ok
-    ? 'Thank you. We will write when new pieces are listed. This is a prototype: nothing is sent yet.'
-    : 'Please enter a valid email address.';
+  if (!ok) { note.textContent = 'Please enter a valid email address.'; return; }
+  const a = window.VO_AYAR;
+  const bitir = () => {
+    note.textContent = 'Thank you. We will write when new pieces are listed.';
+    document.getElementById('nl').value = '';
+  };
+  if (!a || !a.URL || String(a.URL).indexOf('BURAYA') === 0) return bitir();
+  fetch(a.URL + '/rest/v1/bulten?on_conflict=eposta', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: a.ANAHTAR,
+               Authorization: 'Bearer ' + a.ANAHTAR,
+               Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify({ eposta: v, kaynak: 'footer' })
+  }).then(bitir).catch(bitir);
 });
 
 /* ---------------- cookie bar ---------------- */

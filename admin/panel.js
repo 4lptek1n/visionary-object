@@ -160,6 +160,7 @@ const MENU = [
   ["sayfalar",    "Site metinleri", "¶"],
   ["sanatcilar",  "Sanatcilar",   "✎"],
   ["ayarlar",     "Ayarlar",      "⚙"],
+  ["analitik",    "Analitik",     "◔"],
   ["kullanicilar","Kullanicilar", "◍"],
   ["gecmis",      "Gecmis",       "↺"],
 ];
@@ -224,9 +225,28 @@ async function yayinla() {
   const { error } = await sb.from("yayin_istek").insert({
     isteyen: oturum.user.id, mesaj: "Panelden istendi"
   });
+  if (error) {
+    btn.disabled = false; btn.textContent = "Yayinla";
+    return bildir("Yayin istegi gonderilemedi: " + error.message, true);
+  }
+  // Istegi hemen tetiklemeyi dene. GitHub'in zamanlanmis calismasi garantili
+  // degil; tetik calisirsa dakikalar, calismazsa yarim saate kadar surebilir.
+  let hemen = false;
+  try {
+    const { data: o } = await sb.auth.getSession();
+    const c = await fetch(window.VO.URL + "/functions/v1/yayin-tetikle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: window.VO.ANAHTAR,
+                 Authorization: "Bearer " + (o.session ? o.session.access_token : window.VO.ANAHTAR) },
+      body: "{}",
+    });
+    const d = await c.json().catch(() => ({}));
+    hemen = d && d.durum === "tetiklendi";
+  } catch (e) { /* tetik olmadiysa zamanlanmis akis devralir */ }
   btn.disabled = false; btn.textContent = "Yayinla";
-  if (error) return bildir("Yayin istegi gonderilemedi: " + error.message, true);
-  bildir("Yayin sıraya alindi. Site birkac dakika icinde guncellenir.");
+  bildir(hemen
+    ? "Yayin basladi. Site birkac dakika icinde guncellenir."
+    : "Yayin siraya alindi. En gec yarim saat icinde canliya alinir; aninda gerekiyorsa bilgisayardaki yayinla.bat ile de yayinlayabilirsin.");
 }
 
 /* ---------------------------------------------------------------- ilanlar */
@@ -800,7 +820,9 @@ async function sayfalarSayfasi() {
 
   gvd.innerHTML = `
   <div class="ustbilgi"><div><h1>Site metinleri</h1>
-    <p>Ana sayfa, hakkinda, kargo, iade gibi sabit sayfalarin metni. Ilan aciklamalari burada degil, ilanin kendi sayfasinda.</p></div></div>
+    <p>Ana sayfa, hakkinda, kargo, iade gibi sabit sayfalarin metni. Ilan aciklamalari burada degil, ilanin kendi sayfasinda.</p>
+    <p class="ipucu" style="margin-block-start:.4rem">Metni BOS birakirsan sitede hazir yazilmis profesyonel metin gorunur.
+       Buraya bir sey yazarsan o sayfada senin yazdigin metin hazir metnin YERINE gecer; bu yuzden ya tam metni yaz ya da bos birak.</p></div></div>
   ${data.map(s => `
     <details class="kutu" style="margin-block-end:.75rem">
       <summary style="padding:1rem;cursor:pointer;display:flex;justify-content:space-between;gap:1rem">
@@ -1006,6 +1028,7 @@ function yonlendir() {
   if (h.startsWith("#/siparisler")) return siparisSayfasi();
   if (h.startsWith("#/talepler")) return talepSayfasi();
   if (h.startsWith("#/odeme")) return odemeSayfasi();
+  if (h.startsWith("#/analitik")) return analitikSayfasi();
   if (h.startsWith("#/sayfalar")) return sayfalarSayfasi();
   if (h.startsWith("#/sanatcilar")) return sanatcilarSayfasi();
   if (h.startsWith("#/ayarlar")) return ayarlarSayfasi();
@@ -1315,18 +1338,30 @@ async function siparisSayfasi() {
 /* ------------------------------------------------------------ gelen kutusu */
 async function talepSayfasi() {
   kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "talepler");
-  const { data, error } = await sb.from("talepler")
-    .select("*").order("olusturuldu", { ascending: false }).limit(300);
+  const [{ data, error }, { data: uyeler }] = await Promise.all([
+    sb.from("talepler").select("*").order("olusturuldu", { ascending: false }).limit(300),
+    sb.from("bulten").select("eposta,olusturuldu,aktif").order("olusturuldu", { ascending: false }).limit(1000),
+  ]);
   const gvd = document.getElementById("icerik");
   if (error) return void (gvd.innerHTML = hataKutusu(error));
 
   const t = data || [];
   const yeni = t.filter(x => x.durum === "yeni").length;
+  const bulten = uyeler || [];
 
   gvd.innerHTML = `
   <div class="ustbilgi"><div><h1>Gelen kutusu</h1>
     <p>Sitedeki "Contact Seller" formundan gelen mesajlar.
        ${yeni ? `<strong>${yeni} yeni</strong>` : "Yeni mesaj yok."}</p></div></div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
+    <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center">
+      <h3 style="margin:0">Bulten kayitlari <span class="ipucu" style="font-weight:400">${bulten.length} e-posta</span></h3>
+      ${bulten.length ? `<button class="btn btn--kucuk" id="bultenKopyala">Adresleri kopyala</button>` : ""}
+    </div>
+    ${bulten.length ? `<p class="ipucu" style="margin-block-start:.5rem">${bulten.slice(0, 8).map(b => esc(b.eposta)).join(", ")}${bulten.length > 8 ? " ..." : ""}</p>`
+      : `<p class="ipucu" style="margin-block-start:.5rem">Alt bilgideki forma e-posta birakan herkes burada birikecek.</p>`}
+  </div>
 
   ${!t.length ? `<div class="kutu"><div class="bos">Henuz mesaj yok.</div></div>` : t.map(x => `
     <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
@@ -1357,6 +1392,13 @@ async function talepSayfasi() {
                 guncellendi: new Date().toISOString() }).eq("id", id);
     bildir(error ? error.message : "Kaydedildi.", !!error);
   }));
+
+  const bk = document.getElementById("bultenKopyala");
+  if (bk) bk.addEventListener("click", () => {
+    navigator.clipboard.writeText(bulten.map(b => b.eposta).join(", "))
+      .then(() => bildir("Adresler panoya kopyalandi."))
+      .catch(() => bildir("Kopyalanamadi; tarayici izin vermedi.", true));
+  });
 }
 
 /* ---------------------------------------------------------------- odeme */
@@ -1506,5 +1548,120 @@ async function odemeSayfasi() {
       .update({ satin_alinabilir: false }).eq("satin_alinabilir", true);
     bildir(error ? error.message : "Tek tikla satis her yerde kapatildi.", !!error);
     if (!error) odemeSayfasi();
+  });
+}
+
+/* ===========================================================================
+   Analitik sayfasi + Gelen kutusuna bulten bolumu.
+   panel.js'in sonuna eklenir. Sayac cerezsizdir; burada yalnizca sayilir.
+   =========================================================================== */
+
+async function analitikSayfasi() {
+  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "analitik");
+  const gvd = document.getElementById("icerik");
+
+  const otuzGun = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  const { data, error } = await sb.from("ziyaretler")
+    .select("yol,kaynak,olusturuldu")
+    .gt("olusturuldu", otuzGun)
+    .order("olusturuldu", { ascending: false })
+    .limit(20000);
+  if (error) return void (gvd.innerHTML = hataKutusu(error));
+
+  const v = data || [];
+  const simdi = Date.now();
+  const gunMs = 24 * 3600 * 1000;
+  const bugun = v.filter(x => simdi - new Date(x.olusturuldu).getTime() < gunMs).length;
+  const hafta = v.filter(x => simdi - new Date(x.olusturuldu).getTime() < 7 * gunMs).length;
+
+  function say(liste, al) {
+    const m = new Map();
+    for (const x of liste) {
+      const k = al(x);
+      if (k) m.set(k, (m.get(k) || 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }
+  const sayfalar = say(v, x => x.yol).slice(0, 12);
+  const eserler = say(v.filter(x => x.yol.indexOf("#/item/") === 0),
+                      x => x.yol.slice(7)).slice(0, 10);
+  const kaynaklar = say(v, x => x.kaynak).slice(0, 10);
+
+  // Gunluk cizgi: son 14 gun, en yogun gune gore olceklenmis yatay cubuklar.
+  const gunler = [];
+  for (let i = 13; i >= 0; i--) {
+    const bas = new Date(simdi - i * gunMs);
+    const ad = bas.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+    const n = v.filter(x => {
+      const t = simdi - new Date(x.olusturuldu).getTime();
+      return t >= (i) * gunMs - (simdi % gunMs) && t < (i + 1) * gunMs - (simdi % gunMs);
+    }).length;
+    gunler.push([ad, n]);
+  }
+  const enCok = Math.max(1, ...gunler.map(g => g[1]));
+
+  const YOL_ADI = y => y === "#/" ? "Ana sayfa"
+    : y.indexOf("#/item/") === 0 ? "Eser: " + y.slice(7)
+    : y.indexOf("#/browse") === 0 ? "Vitrin"
+    : y.indexOf("#/info/") === 0 ? "Sayfa: " + y.slice(7)
+    : y;
+
+  gvd.innerHTML = `
+  <div class="ustbilgi"><div><h1>Analitik</h1>
+    <p>Cerezsiz, birinci taraf sayac: yalnizca sayfa yolu ve geldigi site tutulur.
+       IP, cerez ve kisisel veri yok. Panele girisli olanlar sayilmaz.</p></div></div>
+
+  <div class="ozet">
+    <div><b>${bugun}</b><span>Bugun</span></div>
+    <div><b>${hafta}</b><span>Son 7 gun</span></div>
+    <div><b>${v.length}</b><span>Son 30 gun</span></div>
+  </div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
+    <h3 style="margin-block-end:.75rem">Son 14 gun</h3>
+    ${gunler.map(([ad, n]) => `
+      <div style="display:grid;grid-template-columns:5.5rem 1fr 3rem;gap:.6rem;align-items:center;margin-block-end:.35rem">
+        <span class="ipucu">${ad}</span>
+        <span style="display:block;block-size:10px;background:var(--pnl-band);border-radius:2px;overflow:hidden">
+          <span style="display:block;block-size:100%;inline-size:${Math.round(n / enCok * 100)}%;background:var(--pnl-ink)"></span></span>
+        <span class="sayisal" style="font-size:.8125rem;text-align:end">${n}</span>
+      </div>`).join("")}
+  </div>
+
+  <div class="ikili">
+    <div class="kutu" style="padding:1.25rem">
+      <h3 style="margin-block-end:.75rem">En cok bakilan eserler</h3>
+      ${!eserler.length ? `<div class="bos" style="padding:1.5rem">Henuz veri yok.</div>`
+        : eserler.map(([slug, n]) => `
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
+          <a href="https://thetimesfigures.com/#/item/${esc(slug)}" target="_blank" rel="noopener">${esc(slug)}</a>
+          <span class="sayisal">${n}</span></div>`).join("")}
+    </div>
+    <div class="kutu" style="padding:1.25rem">
+      <h3 style="margin-block-end:.75rem">Nereden geliyorlar</h3>
+      ${!kaynaklar.length ? `<div class="bos" style="padding:1.5rem">Dogrudan girisler disinda kaynak yok.</div>`
+        : kaynaklar.map(([k, n]) => `
+        <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
+          <span>${esc(k)}</span><span class="sayisal">${n}</span></div>`).join("")}
+    </div>
+  </div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-start:.75rem">
+    <h3 style="margin-block-end:.75rem">En cok gezilen sayfalar</h3>
+    ${sayfalar.map(([y, n]) => `
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
+        <span>${esc(YOL_ADI(y))}</span><span class="sayisal">${n}</span></div>`).join("")}
+  </div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-start:.75rem">
+    <h3>Temizlik</h3>
+    <p class="ipucu" style="margin-block-end:.75rem">90 gunden eski kayitlari silmek tabloyu kucuk tutar; raporlar son 30 gune bakar.</p>
+    <button class="btn btn--kucuk" id="analitikTemizle">90 gunden eskiyi sil</button>
+  </div>`;
+
+  document.getElementById("analitikTemizle").addEventListener("click", async () => {
+    const sinir = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+    const { error } = await sb.from("ziyaretler").delete().lt("olusturuldu", sinir);
+    bildir(error ? error.message : "Eski kayitlar silindi.", !!error);
   });
 }

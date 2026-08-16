@@ -82,7 +82,8 @@ def item_page(d, base, roleen):
     creator = d["creator"] or ""
     title = (f'{creator}, {d["title"]} For Sale' if creator
              else f'{d["title"]} For Sale | Visionary Object')
-    desc = (f'For sale at Visionary Object: {d["title"]}'
+    # Panelden yazilmis SEO aciklamasi varsa o kazanir; yoksa kaliptan uretilir.
+    desc = d.get("seo") or (f'For sale at Visionary Object: {d["title"]}'
             + (f', {d["medium"]}' if d["medium"] else "")
             + (f' by {creator}' if creator else "")
             + '. One of a kind, offered directly by the collector.')
@@ -98,8 +99,12 @@ def item_page(d, base, roleen):
         "itemCondition": "https://schema.org/UsedCondition",
         "brand": {"@type": "Brand", "name": creator or "Visionary Object"},
         "image": [f'{base}/{o["f"]}' for o in imgs[:8]],
-        "offers": {"@type": "Offer", "availability": "https://schema.org/InStock",
-                   "priceCurrency": "USD", "price": 0,
+        "offers": {"@type": "Offer",
+                   "availability": ("https://schema.org/SoldOut" if d.get("sold")
+                                    else "https://schema.org/InStock"),
+                   "priceCurrency": d.get("cur") or "USD",
+                   # Fiyat girilmemisse 0: schema.org'da "fiyat sorunuz" karsiligi.
+                   "price": d.get("price") or 0,
                    "priceSpecification": {"@type": "PriceSpecification",
                                           "valueAddedTaxIncluded": False},
                    "url": f'{base}/item/{slug}.html',
@@ -150,7 +155,7 @@ def item_page(d, base, roleen):
   <p class="eyebrow">{esc(CATNAME[cat])}</p>
   <h1>{esc(d["title"])}</h1>
   <p class="stat-by">{esc(creator)}{(" &middot; " + esc(d["period"])) if d["period"] else ""}</p>
-  <p class="stat-price">Price Upon Request</p>
+  <p class="stat-price">{("Sold" if d.get("sold") else ("Reserved" if d.get("reserved") else (("$" + format(int(d["price"]), ",") if (d.get("cur") or "USD") == "USD" else f'{int(d["price"])} {d.get("cur")}') if d.get("price") is not None else "Price Upon Request")))}</p>
   <div class="stat-gal">{figs}</div>
   <section><h2>About the Item</h2><p>{esc(d["desc"])}</p></section>
   <section><h2>Details</h2><dl class="stat-dl">{dl}</dl></section>

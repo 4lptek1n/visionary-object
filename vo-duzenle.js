@@ -386,7 +386,22 @@
     sb.from("yayin_istek").insert({ mesaj: "Site uzerinden istendi" }).then(function (c) {
       if (c.error) return uyari(c.error.message, true);
       bekleyen = 0; cubukCiz();
-      uyari("Yayin siraya alindi. Site birkac dakika icinde guncellenir.");
+      // Hemen tetiklemeyi dene; token girilmemisse zamanlanmis akis devralir.
+      sb.auth.getSession().then(function (o) {
+        var jeton = o.data && o.data.session ? o.data.session.access_token : "";
+        return fetch(window.VO_AYAR.URL + "/functions/v1/yayin-tetikle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: window.VO_AYAR.ANAHTAR,
+                     Authorization: "Bearer " + (jeton || window.VO_AYAR.ANAHTAR) },
+          body: "{}"
+        });
+      }).then(function (c2) { return c2.json(); }).then(function (d) {
+        uyari(d && d.durum === "tetiklendi"
+          ? "Yayin basladi. Site birkac dakika icinde guncellenir."
+          : "Yayin siraya alindi. En gec yarim saat icinde canliya alinir.");
+      }).catch(function () {
+        uyari("Yayin siraya alindi. En gec yarim saat icinde canliya alinir.");
+      });
     });
   }
 

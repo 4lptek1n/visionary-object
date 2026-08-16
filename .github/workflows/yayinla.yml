@@ -14,11 +14,11 @@ name: Yayinla
 
 on:
   schedule:
-    # GitHub zamanlanmis isleri "en erken" calistirir, saati garanti etmez;
-    # yogun saatlerde 5 dakikalik araligi 20-30 dakikaya kadar uzatabilir.
-    # Aninda yayin gerekiyorsa: Actions > Yayinla > Run workflow, ya da
-    # bilgisayardan yayinla.bat.
-    - cron: "*/5 * * * *"
+    # GitHub zamanlanmis isleri "en erken" calistirir, saati garanti etmez.
+    # 0 ve 5'in katlari en yogun dakikalardir ve cogu zaman atlanir; bu yuzden
+    # ara dakikalar secildi. Aninda yayin icin panel yayin-tetikle fonksiyonunu
+    # cagirir (GITHUB_TOKEN girilirse); o da olmazsa yayinla.bat var.
+    - cron: "9,24,39,54 * * * *"
   workflow_dispatch:
   # Supabase'den dogrudan tetiklemek icin (bir GitHub token'i gerektirir):
   #   curl -X POST -H "Authorization: Bearer <token>" \
