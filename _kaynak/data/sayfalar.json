@@ -1,0 +1,56 @@
+{
+ "anasayfa": {
+  "anahtar": "anasayfa",
+  "baslik": "Home",
+  "icerik": "",
+  "seo_baslik": "",
+  "seo_aciklama": "",
+  "guncellendi": "2026-08-16T00:41:51.625238+00:00",
+  "guncelleyen": null
+ },
+ "hakkinda": {
+  "anahtar": "hakkinda",
+  "baslik": "About",
+  "icerik": "",
+  "seo_baslik": "",
+  "seo_aciklama": "",
+  "guncellendi": "2026-08-16T00:41:51.625238+00:00",
+  "guncelleyen": null
+ },
+ "kargo": {
+  "anahtar": "kargo",
+  "baslik": "Shipping & Delivery",
+  "icerik": "",
+  "seo_baslik": "",
+  "seo_aciklama": "",
+  "guncellendi": "2026-08-16T00:41:51.625238+00:00",
+  "guncelleyen": null
+ },
+ "iade": {
+  "anahtar": "iade",
+  "baslik": "Returns",
+  "icerik": "",
+  "seo_baslik": "",
+  "seo_aciklama": "",
+  "guncellendi": "2026-08-16T00:41:51.625238+00:00",
+  "guncelleyen": null
+ },
+ "gizlilik": {
+  "anahtar": "gizlilik",
+  "baslik": "Privacy",
+  "icerik": "",
+  "seo_baslik": "",
+  "seo_aciklama": "",
+  "guncellendi": "2026-08-16T00:41:51.625238+00:00",
+  "guncelleyen": null
+ },
+ "sartlar": {
+  "anahtar": "sartlar",
+  "baslik": "Terms",
+  "icerik": "",
+  "seo_baslik": "",
+  "seo_aciklama": "",
+  "guncellendi": "2026-08-16T00:41:51.625238+00:00",
+  "guncelleyen": null
+ }
+}

@@ -1,0 +1,92 @@
+<span id="topSentinel" aria-hidden="true"></span>
+<button class="totop" id="toTop" type="button" hidden>
+  <span class="ar" aria-hidden="true"></span><span>TOP</span></button>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer drawer--left" id="navDrawer" role="dialog" aria-modal="false" aria-labelledby="navTitle" aria-hidden="true">
+  <div class="drawer-top">
+    <h2 id="navTitle">Browse</h2>
+    <button class="iconb" type="button" data-drawer-close aria-label="Close">{X}</button>
+  </div>
+  <nav class="drawer-body" aria-label="Site">
+    <ul class="navlist">
+      <li><a href="#/browse?cat=new">New Arrivals</a></li>
+      <li><a href="#/browse?cat=tablo">Paintings &amp; Prints</a></li>
+      <li><a href="#/browse?cat=obje">Handmade Objects</a></li>
+      <li><a href="#/browse?cat=belge">Documents</a></li>
+      <li><a href="#/browse?cat=rugs">Persian Rug</a></li>
+      <li><a href="#/browse?cat=lighting">Lighting</a></li>
+      <li><a href="#/browse?cat=sculpture">Sculpture</a></li>
+      <li><a href="museum/index.html">The Museum</a></li>
+    </ul>
+    <ul class="navlist navlist--s">
+      <li><a href="#/browse">All 49 Items</a></li>
+      <li><a href="#/collections">Collections</a></li>
+      <li><a href="#/creators">Creators</a></li>
+      <li><a href="#/favorites">Favorites</a></li>
+      <li><a href="#/cart">Shopping Bag</a></li>
+      <li><a href="#/account">Account</a></li>
+    </ul>
+    <ul class="navlist navlist--s">
+      <li><a href="#/info/about">About Us</a></li>
+      <li><a href="#/info/how-it-works">How It Works</a></li>
+      <li><a href="#/info/shipping">Shipping &amp; Delivery</a></li>
+      <li><a href="#/info/contact">Contact Us</a></li>
+    </ul>
+  </nav>
+</aside>
+<aside class="drawer" id="cartDrawer" role="dialog" aria-modal="false" aria-labelledby="cartTitle" aria-hidden="true">
+  <div class="drawer-top">
+    <h2 id="cartTitle">My Shopping Bag</h2>
+    <button class="iconb" type="button" data-drawer-close aria-label="Close">{X}</button>
+  </div>
+  <div class="drawer-body" id="cartBody"></div>
+  <div class="drawer-foot">
+    <p style="display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:var(--t-xs);margin-block-end:.9rem">
+      <span id="cartFootN">0 items</span><span>Price Upon Request</span></p>
+    <a class="btn btn--fill" href="#/cart" data-drawer-close style="inline-size:100%">View All <span class="arw" aria-hidden="true">&#8594;</span></a>
+  </div>
+</aside>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Enlarged image" hidden>
+  <button class="x" id="lbClose" type="button" aria-label="Close">&times;</button>
+  <button class="nav prev" type="button" data-lb="-1" aria-label="Previous image">{LEFT}</button>
+  <img id="lbImg" alt="">
+  <p class="hint">Click the image to zoom &middot; drag to pan</p>
+  <button class="nav next" type="button" data-lb="1" aria-label="Next image">{RIGHT}</button>
+  <p class="cap" id="lbCap"></p>
+</div>
+
+<div class="cookie" id="cookie">
+  <div class="cookie-in">
+    <p>We use only the cookies this site needs to work. We do not run advertising trackers and we do not
+      sell or share your personal information. See our <a href="#/info/privacy">Privacy Policy</a>.</p>
+    <div class="acts">
+      <button class="btn btn--line" type="button" data-ck>Reject Non-Essential</button>
+      <button class="btn btn--fill" type="button" data-ck>Accept</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="qv" closedby="any" aria-label="Quick view">
+  <div class="dbox dbox--wide">
+    <button class="dclose" data-close type="button" aria-label="Close">&times;</button>
+    <div id="qvBody"></div>
+  </div>
+</dialog>
+
+<dialog id="det" closedby="any" aria-label="Policy details">
+  <div class="dbox">
+    <button class="dclose" data-close type="button" aria-label="Close">&times;</button>
+    <div id="detBody"></div>
+  </div>
+</dialog>
+
+<dialog id="auth" closedby="any" aria-labelledby="authTitle">
+  <div class="dbox">
+    <button class="dclose" data-close type="button" aria-label="Close">&times;</button>
+    <h2 id="authTitle" style="font-size:var(--t-h3);margin-block-end:1rem">Log in</h2>
+    <div id="authBody" class="dprose"></div>
+    <button class="btn btn--line" data-close type="button" style="margin-block-start:1.4rem">Close</button>
+  </div>
+</dialog>

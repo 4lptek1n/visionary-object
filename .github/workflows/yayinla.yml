@@ -1,0 +1,103 @@
+name: Yayinla
+
+# Panelde Yayinla'ya basilinca Supabase'e bir istek satiri duser. Bu is akisi
+# bes dakikada bir bakar; bekleyen istek varsa siteyi yeniden uretir.
+#
+# service_role anahtari hicbir yerde durmuyor. Yayinci hesabinin e-postasi ve
+# sifresiyle giris yapilir; yetki o hesabin yetkisi kadardir.
+#
+# Gereken GitHub Secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_URL       https://vtrwlajtotcnwusjlzgo.supabase.co
+#   SUPABASE_ANON_KEY  acik anon anahtari
+#   SUPABASE_EPOSTA    yayinci hesabinin e-postasi
+#   SUPABASE_SIFRE     o hesabin sifresi
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: yayin
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  yayinla:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_EPOSTA: ${{ secrets.SUPABASE_EPOSTA }}
+      SUPABASE_SIFRE: ${{ secrets.SUPABASE_SIFRE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bekleyen istek var mi
+        id: kontrol
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "var=evet" >> $GITHUB_OUTPUT; echo "Elle tetiklendi."; exit 0
+          fi
+          jeton=$(curl -s -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+            -d "{\"email\":\"$SUPABASE_EPOSTA\",\"password\":\"$SUPABASE_SIFRE\"}" \
+            | python3 -c "import sys,json;print(json.load(sys.stdin).get('access_token',''))")
+          if [ -z "$jeton" ]; then echo "giris olmadi"; echo "var=hayir" >> $GITHUB_OUTPUT; exit 0; fi
+          echo "::add-mask::$jeton"
+          echo "JETON=$jeton" >> $GITHUB_ENV
+          adet=$(curl -s -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $jeton" \
+            "$SUPABASE_URL/rest/v1/yayin_istek?durum=eq.sirada&select=id" | grep -o '"id"' | wc -l)
+          echo "bekleyen istek: $adet"
+          if [ "$adet" -gt 0 ]; then echo "var=evet" >> $GITHUB_OUTPUT; else echo "var=hayir" >> $GITHUB_OUTPUT; fi
+
+      - uses: actions/setup-python@v5
+        if: steps.kontrol.outputs.var == 'evet'
+        with:
+          python-version: "3.12"
+
+      - name: Bagimliliklar
+        if: steps.kontrol.outputs.var == 'evet'
+        run: pip install --quiet pillow pillow-heif
+
+      - name: Calisiyor olarak isaretle
+        if: steps.kontrol.outputs.var == 'evet' && env.JETON != ''
+        run: |
+          curl -s -X PATCH -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $JETON" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+            -d "{\"durum\":\"calisiyor\",\"basladi\":\"$(date -u +%FT%TZ)\"}" \
+            "$SUPABASE_URL/rest/v1/yayin_istek?durum=eq.sirada"
+
+      - name: Veriyi cek ve siteyi uret
+        if: steps.kontrol.outputs.var == 'evet'
+        working-directory: _kaynak
+        env:
+          VO_CIKTI: ${{ github.workspace }}
+        run: |
+          python tools/supabase_cek.py
+          python build_en.py
+
+      - name: Canliya gonder
+        if: steps.kontrol.outputs.var == 'evet'
+        run: |
+          git config user.name "Visionary Object yayin"
+          git config user.email "yayin@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "degisiklik yok"
+          else
+            git commit -m "Panelden yayin: $(date -u +%F\ %H:%M) UTC"
+            git push
+          fi
+
+      - name: Sonucu bildir
+        if: always() && steps.kontrol.outputs.var == 'evet'
+        run: |
+          if [ -z "$JETON" ]; then echo "jeton yok, bildirim atlandi"; exit 0; fi
+          durum=$([ "${{ job.status }}" = "success" ] && echo bitti || echo hata)
+          curl -s -X PATCH -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $JETON" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+            -d "{\"durum\":\"$durum\",\"bitti\":\"$(date -u +%FT%TZ)\",\"kayit\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SUPABASE_URL/rest/v1/yayin_istek?durum=eq.calisiyor"

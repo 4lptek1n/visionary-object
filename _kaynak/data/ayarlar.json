@@ -1,0 +1,24 @@
+{
+ "marka": {
+  "ad": "Visionary Object",
+  "slogan": "One-of-a-kind antique art, direct from the collector"
+ },
+ "iletisim": {
+  "eposta": "",
+  "telefon": "",
+  "instagram": ""
+ },
+ "konum": {
+  "ulke": "US",
+  "bolge": "Virginia",
+  "gorunen": "Virginia, United States"
+ },
+ "para": {
+  "birim": "USD",
+  "simge": "$"
+ },
+ "fiyat_politikasi": {
+  "gizli_metin": "Price Upon Request",
+  "varsayilan_gizli": true
+ }
+}
