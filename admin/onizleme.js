@@ -11,6 +11,30 @@
   const baglandi = window.VO && window.VO.URL && !String(window.VO.URL).startsWith("BURAYA");
   if (baglandi) return;
 
+
+  /* ------------------------------------------------------------------ kilit
+   * Supabase baglanana kadar panele bir sifre kapisi koyuyoruz. Bunun ne
+   * oldugunu acikca soyleyelim: bu bir PERDE, kilit degil. Denetim tarayicida
+   * yapiliyor, yani bilen biri gecebilir. Arkasinda gizli veri de yok; ayni 270
+   * ilan zaten sitede herkese acik ve bu ekran hicbir sey kaydetmiyor.
+   * Gercek kilit Supabase baglandiginda gelir: sifre orada durur, denetim
+   * sunucuda yapilir, her kullanicinin kendi hesabi olur.
+   */
+  var SIFRE_OZETI = "6bafea4cc4988c9e56968eeda677c352914bcf2a724af75bdb663ae9cab27d82";
+  var ANAHTAR = "vo-onizleme-acik";
+
+  function ozet(metin) {
+    var veri = new TextEncoder().encode(metin);
+    return crypto.subtle.digest("SHA-256", veri).then(function (b) {
+      return Array.from(new Uint8Array(b))
+        .map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+    });
+  }
+
+  function acikMi() {
+    try { return sessionStorage.getItem(ANAHTAR) === "1"; } catch (e) { return false; }
+  }
+
   const yuklendi = fetch("onizleme.json").then(r => r.json());
   const hataCevap = {
     data: null,
@@ -94,10 +118,28 @@
       },
     },
     auth: {
-      getSession: () => Promise.resolve({ data: { session: { user: { id: "onizleme" } } } }),
-      signInWithPassword: () => Promise.resolve({ error: null }),
-      signOut: () => Promise.resolve({}),
-      resetPasswordForEmail: () => Promise.resolve({ error: hataCevap.error }),
+      getSession: function () {
+        return Promise.resolve({
+          data: { session: acikMi() ? { user: { id: "onizleme" } } : null }
+        });
+      },
+      signInWithPassword: function (g) {
+        return ozet(String((g && g.password) || "")).then(function (h) {
+          if (h !== SIFRE_OZETI) {
+            return { error: { message: "Sifre dogru degil." } };
+          }
+          try { sessionStorage.setItem(ANAHTAR, "1"); } catch (e) {}
+          return { error: null };
+        });
+      },
+      signOut: function () {
+        try { sessionStorage.removeItem(ANAHTAR); } catch (e) {}
+        return Promise.resolve({});
+      },
+      resetPasswordForEmail: function () {
+        return Promise.resolve({ error: { message:
+          "Onizleme sifresi sabittir. Supabase baglaninca kendi sifreni belirleyeceksin." } });
+      },
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
     ONIZLEME: true,

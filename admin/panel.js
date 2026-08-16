@@ -69,7 +69,7 @@ function girisEkrani(hataMesaji = "") {
     <form id="giris-form">
       <div>
         <p class="marka">Visionary Object</p>
-        <p class="alt">Yonetim paneli</p>
+        <p class="alt">Yonetim paneli${typeof ONIZLEME !== "undefined" && ONIZLEME ? " - onizleme" : ""}</p>
       </div>
       ${hataMesaji ? `<p class="uyari-serit uyari-serit--hata" role="alert">${esc(hataMesaji)}</p>` : ""}
       <div class="alan">
@@ -82,6 +82,9 @@ function girisEkrani(hataMesaji = "") {
       </div>
       <button class="btn" type="submit">Giris yap</button>
       <button class="btn btn--line btn--kucuk" type="button" id="sifre-unuttum">Sifremi unuttum</button>
+      ${typeof ONIZLEME !== "undefined" && ONIZLEME ? `<p style="font-size:.75rem;color:var(--pnl-ink-3);line-height:1.5;margin-block-start:.25rem">
+        Onizleme kilidi. Denetim tarayicida yapiliyor, yani bu bir perde; gercek kilit
+        Supabase baglandiginda gelir. E-posta alanina istedigini yazabilirsin.</p>` : ""}
     </form>
   </div>`;
 
@@ -957,6 +960,8 @@ window.addEventListener("hashchange", yonlendir);
 /* --------------------------------------------------------------- baslangic */
 async function baslat() {
   if (ONIZLEME) {
+    const { data: o } = await sb.auth.getSession();
+    if (!o.session) return girisEkrani();
     profil = { id: "onizleme", ad: "Onizleme", rol: "sahip", eposta: "onizleme" };
     oturum = { user: { id: "onizleme" } };
     yonlendir();
