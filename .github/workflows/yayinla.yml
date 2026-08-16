@@ -14,8 +14,19 @@ name: Yayinla
 
 on:
   schedule:
+    # GitHub zamanlanmis isleri "en erken" calistirir, saati garanti etmez;
+    # yogun saatlerde 5 dakikalik araligi 20-30 dakikaya kadar uzatabilir.
+    # Aninda yayin gerekiyorsa: Actions > Yayinla > Run workflow, ya da
+    # bilgisayardan yayinla.bat.
     - cron: "*/5 * * * *"
   workflow_dispatch:
+  # Supabase'den dogrudan tetiklemek icin (bir GitHub token'i gerektirir):
+  #   curl -X POST -H "Authorization: Bearer <token>" \
+  #     -H "Accept: application/vnd.github+json" \
+  #     https://api.github.com/repos/4lptek1n/visionary-object/dispatches \
+  #     -d '{"event_type":"yayinla"}'
+  repository_dispatch:
+    types: [yayinla]
 
 concurrency:
   group: yayin
@@ -47,7 +58,7 @@ jobs:
           else
             echo "giris olmadi"
           fi
-          if [ "${{ github.event_name }}" != "schedule" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "var=evet" >> $GITHUB_OUTPUT; echo "Elle tetiklendi."; exit 0
           fi
           if [ -z "$jeton" ]; then echo "var=hayir" >> $GITHUB_OUTPUT; exit 0; fi
