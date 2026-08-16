@@ -5,3 +5,8 @@ DOGRULAMA.md
 GAP.md
 vercel.json
 .vercelignore
+
+_kaynak/__pycache__/
+_kaynak/**/__pycache__/
+_kaynak/data/yedek/
+_kaynak/dene.bat
