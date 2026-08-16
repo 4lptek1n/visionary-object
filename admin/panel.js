@@ -65,6 +65,25 @@ async function sor(soru, onay = "Sil") {
   });
 }
 
+/* Veritabani henuz kurulmamissa PostgREST "tablo yok" der. Ham hata yerine
+   ne yapilacagini yaziyoruz. */
+function hataKutusu(hata) {
+  const kurulmamis = hata && (hata.code === "PGRST205" ||
+    /schema cache|does not exist|Could not find the table/i.test(hata.message || ""));
+  if (!kurulmamis) return `<p class="uyari-serit uyari-serit--hata">${esc(hata.message || hata)}</p>`;
+  return `<div class="kutu" style="padding:2rem;max-inline-size:640px">
+    <h2>Veritabani henuz kurulmadi</h2>
+    <p style="color:var(--pnl-ink-2);margin-block-start:.75rem">
+      Supabase projesi bagli ve calisiyor, ama tablolar acilmamis. Supabase panelinde
+      <b>SQL Editor</b> bolumune gec ve su iki dosyayi sirayla yapistirip calistir:</p>
+    <ol style="color:var(--pnl-ink-2);margin:1rem 0 0 1.2rem;line-height:2">
+      <li><code>supabase/KUR.sql</code> - tablolar, erisim kurallari, kampanya sistemi</li>
+      <li><code>supabase/VERI.sql</code> - 270 ilan ve 879 gorsel</li>
+    </ol>
+    <p style="margin-block-start:1.25rem"><button class="btn" onclick="location.reload()">Kurdum, yenile</button></p>
+  </div>`;
+}
+
 const YETKI = () => profil && (profil.rol === "sahip" || profil.rol === "yonetici");
 const SAHIP = () => profil && profil.rol === "sahip";
 
@@ -87,7 +106,10 @@ function girisEkrani(hataMesaji = "") {
         <input id="sifre" type="password" autocomplete="current-password" required>
       </div>
       <button class="btn" type="submit">Giris yap</button>
-      <button class="btn btn--line btn--kucuk" type="button" id="sifre-unuttum">Sifremi unuttum</button>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn--line btn--kucuk" type="button" id="sifre-unuttum">Sifremi unuttum</button>
+        <button class="btn btn--line btn--kucuk" type="button" id="hesap-ac">Hesap olustur</button>
+      </div>
       ${typeof ONIZLEME !== "undefined" && ONIZLEME ? `<p style="font-size:.75rem;color:var(--pnl-ink-3);line-height:1.5;margin-block-start:.25rem">
         Onizleme kilidi. Denetim tarayicida yapiliyor, yani bu bir perde; gercek kilit
         Supabase baglandiginda gelir. E-posta alanina istedigini yazabilirsin.</p>` : ""}
@@ -104,6 +126,19 @@ function girisEkrani(hataMesaji = "") {
     });
     if (error) { girisEkrani("E-posta ya da sifre dogru degil."); return; }
     baslat();
+  });
+
+  const hesapDugme = document.getElementById("hesap-ac");
+  if (hesapDugme) hesapDugme.addEventListener("click", async () => {
+    const e = document.getElementById("eposta").value.trim();
+    const p = document.getElementById("sifre").value;
+    if (!e || p.length < 8) return bildir("E-posta yaz ve en az sekiz karakterlik bir sifre sec.", true);
+    hesapDugme.disabled = true; hesapDugme.textContent = "Aciliyor";
+    const { data, error } = await sb.auth.signUp({ email: e, password: p });
+    hesapDugme.disabled = false; hesapDugme.textContent = "Hesap olustur";
+    if (error) return bildir(error.message, true);
+    if (data && data.session) { baslat(); return; }
+    bildir("Hesap acildi. E-postana gelen dogrulama baglantisina tikla, sonra giris yap.");
   });
 
   document.getElementById("sifre-unuttum").addEventListener("click", async () => {
@@ -226,7 +261,7 @@ async function ilanlarSayfasi() {
   q = q.range(bas, bas + durumState.adet - 1);
 
   const { data, error, count } = await q;
-  if (error) { gvd.innerHTML = `<p class="uyari-serit uyari-serit--hata">${esc(error.message)}</p>`; return; }
+  if (error) { gvd.innerHTML = hataKutusu(error); return; }
 
   const sayfaSayisi = Math.max(1, Math.ceil((count || 0) / durumState.adet));
   const secenek = (liste, secili) => liste.map(([v, ad]) =>

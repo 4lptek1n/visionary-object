@@ -1,2 +1,2 @@
 /* build_en.py tarafindan data/panel.json'dan uretilir. Elle duzenleme. */
-window.VO = {"URL": "BURAYA_PROJE_URL", "ANAHTAR": "BURAYA_ANON_ANAHTAR", "SITE": "https://thetimesfigures.com"};
+window.VO = {"URL": "https://vtrwlajtotcnwusjlzgo.supabase.co", "ANAHTAR": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0cndsYWp0b3Rjbnd1c2psemdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MzA2NTcsImV4cCI6MjEwMjQwNjY1N30.W6YNSG2CRbhV7in1g_eTQRw-vq55NQ5EsGdtOE4GcGw", "SITE": "https://thetimesfigures.com"};
