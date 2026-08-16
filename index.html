@@ -3235,11 +3235,13 @@ if (nf) nf.addEventListener('submit', e => {
     document.getElementById('nl').value = '';
   };
   if (!a || !a.URL || String(a.URL).indexOf('BURAYA') === 0) return bitir();
-  fetch(a.URL + '/rest/v1/bulten?on_conflict=eposta', {
+  /* Ayni adres ikinci kez gelirse veritabani 409 doner; ziyaretci icin bu da
+     "tesekkurler" demektir, ayrim gostermeyiz. (on_conflict kullanmiyoruz:
+     RLS altinda arabulucu, okuma izni olmayan anon icin calismiyor.) */
+  fetch(a.URL + '/rest/v1/bulten', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: a.ANAHTAR,
-               Authorization: 'Bearer ' + a.ANAHTAR,
-               Prefer: 'resolution=ignore-duplicates,return=minimal' },
+               Authorization: 'Bearer ' + a.ANAHTAR, Prefer: 'return=minimal' },
     body: JSON.stringify({ eposta: v, kaynak: 'footer' })
   }).then(bitir).catch(bitir);
 });
