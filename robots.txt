@@ -3,4 +3,4 @@ Allow: /
 Disallow: /order/
 Disallow: /_kaynak/
 
-Sitemap: https://thetimesfigures.com/sitemap.xml
+Sitemap: https://visionaryobjects.com/sitemap.xml

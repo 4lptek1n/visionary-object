@@ -92,7 +92,7 @@ from pages_en import INFO, MUSEUM_ROOMS
 # ve robots.txt hepsi bu tek sabitten uretiliyor.
 # Gecici demo adresi. Gercek alan adi alindiginda burasi degisir ve site
 # yeniden uretilir; canonical, sitemap, robots ve og etiketleri buradan gelir.
-SITE_URL = "https://thetimesfigures.com"
+SITE_URL = "https://visionaryobjects.com"
 def _es(ad, bos):
     """Eski kaynak dosyalar. Site artik ilanlar.json'dan uretiliyor; bunlar
     yalnizca ilan_disa_aktar.py icin duruyor, yoksa da site kurulur."""
@@ -2009,3 +2009,4 @@ def static_build(fonts):
 
 if __name__ == "__main__":
     build()
+

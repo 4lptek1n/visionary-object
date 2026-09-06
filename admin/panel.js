@@ -1634,7 +1634,7 @@ async function analitikSayfasi() {
       ${!eserler.length ? `<div class="bos" style="padding:1.5rem">Henuz veri yok.</div>`
         : eserler.map(([slug, n]) => `
         <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
-          <a href="https://thetimesfigures.com/#/item/${esc(slug)}" target="_blank" rel="noopener">${esc(slug)}</a>
+          <a href="https://visionaryobjects.com/#/item/${esc(slug)}" target="_blank" rel="noopener">${esc(slug)}</a>
           <span class="sayisal">${n}</span></div>`).join("")}
     </div>
     <div class="kutu" style="padding:1.25rem">
@@ -1665,3 +1665,4 @@ async function analitikSayfasi() {
     bildir(error ? error.message : "Eski kayitlar silindi.", !!error);
   });
 }
+

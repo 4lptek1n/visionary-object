@@ -29,7 +29,7 @@ with sync_playwright() as p:
              if m.type in ("error",) else None)
     sayfa.on("pageerror", lambda e: hatalar.append((sayfa.url, "PAGEERROR " + str(e))))
 
-    sayfa.goto("https://thetimesfigures.com/admin/", wait_until="domcontentloaded")
+    sayfa.goto("https://visionaryobjects.com/admin/", wait_until="domcontentloaded")
     sayfa.wait_for_timeout(2500)
     sayfa.fill("#eposta", EPOSTA) if sayfa.query_selector("#eposta") else None
     # Alan kimlikleri farkli olabilir; ilk e-posta ve sifre girdisini kullan.
@@ -42,7 +42,7 @@ with sync_playwright() as p:
     print("giris sonrasi:", sayfa.url)
 
     for yol in SAYFALAR:
-        sayfa.goto("https://thetimesfigures.com/admin/" + yol)
+        sayfa.goto("https://visionaryobjects.com/admin/" + yol)
         sayfa.wait_for_timeout(2200)
         govde = sayfa.inner_text("body")
         isaret = "OK"
@@ -61,3 +61,4 @@ if hatalar:
         print("  ", u.split('admin/')[-1][:24], "|", t[:160].encode("ascii", "replace").decode())
 else:
     print("Konsol hatasi yok.")
+
