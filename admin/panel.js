@@ -1470,7 +1470,7 @@ async function odemeSayfasi() {
     <div class="alan" style="max-inline-size:480px">
       <label for="od-talep">Talep bildirim e-postasi</label>
       <input id="od-talep" type="email" value="${esc(a.talep_eposta || "")}"
-             placeholder="ornek@thetimesfigures.com">
+             placeholder="ornek@visionaryobjects.com">
       <p class="ipucu">Gelen kutusuna yeni mesaj dustugunde buraya haber gider.
          Bos birakirsan mesaj yine panele duser, sadece e-posta gitmez.</p>
     </div>
