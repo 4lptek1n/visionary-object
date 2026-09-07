@@ -45,13 +45,13 @@ function gorselUrl(yol, boy = 400) {
   return t.data.publicUrl;
 }
 
-async function sor(soru, onay = "Sil") {
+async function sor(soru, onay = "Delete") {
   return new Promise(cevapla => {
     const d = document.createElement("dialog");
     d.innerHTML = `<h2>${esc(soru)}</h2>
-      <p style="color:var(--pnl-ink-2);margin:.75rem 0 1.5rem">Bu islem geri alinamaz.</p>
+      <p style="color:var(--pnl-ink-2);margin:.75rem 0 1.5rem">This cannot be undone.</p>
       <div class="eylemler" style="justify-content:flex-end">
-        <button class="btn btn--line" value="iptal">Vazgec</button>
+        <button class="btn btn--line" value="iptal">Cancel</button>
         <button class="btn btn--tehlike" value="tamam">${esc(onay)}</button>
       </div>`;
     document.body.append(d);
@@ -72,15 +72,15 @@ function hataKutusu(hata) {
     /schema cache|does not exist|Could not find the table/i.test(hata.message || ""));
   if (!kurulmamis) return `<p class="uyari-serit uyari-serit--hata">${esc(hata.message || hata)}</p>`;
   return `<div class="kutu" style="padding:2rem;max-inline-size:640px">
-    <h2>Veritabani henuz kurulmadi</h2>
+    <h2>Database not set up yet</h2>
     <p style="color:var(--pnl-ink-2);margin-block-start:.75rem">
       Supabase projesi bagli ve calisiyor, ama tablolar acilmamis. Supabase panelinde
-      <b>SQL Editor</b> bolumune gec ve su iki dosyayi sirayla yapistirip calistir:</p>
+      <b>SQL Editor</b> section, paste these two files in order, then run:</p>
     <ol style="color:var(--pnl-ink-2);margin:1rem 0 0 1.2rem;line-height:2">
-      <li><code>supabase/KUR.sql</code> - tablolar, erisim kurallari, kampanya sistemi</li>
-      <li><code>supabase/VERI.sql</code> - 270 ilan ve 879 gorsel</li>
+      <li><code>supabase/KUR.sql</code> - tables, access rules, promotion system</li>
+      <li><code>supabase/VERI.sql</code> - 270 listings and 879 images</li>
     </ol>
-    <p style="margin-block-start:1.25rem"><button class="btn" onclick="location.reload()">Kurdum, yenile</button></p>
+    <p style="margin-block-start:1.25rem"><button class="btn" onclick="location.reload()">Done, reload</button></p>
   </div>`;
 }
 
@@ -94,25 +94,25 @@ function girisEkrani(hataMesaji = "") {
     <form id="giris-form">
       <div>
         <p class="marka">Visionary Object</p>
-        <p class="alt">Yonetim paneli${typeof ONIZLEME !== "undefined" && ONIZLEME ? " - onizleme" : ""}</p>
+        <p class="alt">Admin panel${typeof ONIZLEME !== "undefined" && ONIZLEME ? " - onizleme" : ""}</p>
       </div>
       ${hataMesaji ? `<p class="uyari-serit uyari-serit--hata" role="alert">${esc(hataMesaji)}</p>` : ""}
       <div class="alan">
-        <label for="eposta">E-posta</label>
+        <label for="eposta">Email</label>
         <input id="eposta" type="email" autocomplete="username" required>
       </div>
       <div class="alan">
-        <label for="sifre">Sifre</label>
+        <label for="sifre">Password</label>
         <input id="sifre" type="password" autocomplete="current-password" required>
       </div>
-      <button class="btn" type="submit">Giris yap</button>
+      <button class="btn" type="submit">Log in</button>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <button class="btn btn--line btn--kucuk" type="button" id="sifre-unuttum">Sifremi unuttum</button>
-        <button class="btn btn--line btn--kucuk" type="button" id="hesap-ac">Hesap olustur</button>
+        <button class="btn btn--line btn--kucuk" type="button" id="sifre-unuttum">Forgot password</button>
+        <button class="btn btn--line btn--kucuk" type="button" id="hesap-ac">Create account</button>
       </div>
       ${typeof ONIZLEME !== "undefined" && ONIZLEME ? `<p style="font-size:.75rem;color:var(--pnl-ink-3);line-height:1.5;margin-block-start:.25rem">
         Onizleme kilidi. Denetim tarayicida yapiliyor, yani bu bir perde; gercek kilit
-        Supabase baglandiginda gelir. E-posta alanina istedigini yazabilirsin.</p>` : ""}
+        It arrives once Supabase is connected. You can type anything in the email field.</p>` : ""}
     </form>
   </div>`;
 
@@ -124,7 +124,7 @@ function girisEkrani(hataMesaji = "") {
       email: document.getElementById("eposta").value.trim(),
       password: document.getElementById("sifre").value
     });
-    if (error) { girisEkrani("E-posta ya da sifre dogru degil."); return; }
+    if (error) { girisEkrani("Email or password is incorrect."); return; }
     baslat();
   });
 
@@ -132,37 +132,37 @@ function girisEkrani(hataMesaji = "") {
   if (hesapDugme) hesapDugme.addEventListener("click", async () => {
     const e = document.getElementById("eposta").value.trim();
     const p = document.getElementById("sifre").value;
-    if (!e || p.length < 8) return bildir("E-posta yaz ve en az sekiz karakterlik bir sifre sec.", true);
-    hesapDugme.disabled = true; hesapDugme.textContent = "Aciliyor";
+    if (!e || p.length < 8) return bildir("Enter an email and choose a password of at least eight characters.", true);
+    hesapDugme.disabled = true; hesapDugme.textContent = "Creating";
     const { data, error } = await sb.auth.signUp({ email: e, password: p });
-    hesapDugme.disabled = false; hesapDugme.textContent = "Hesap olustur";
+    hesapDugme.disabled = false; hesapDugme.textContent = "Create account";
     if (error) return bildir(error.message, true);
     if (data && data.session) { baslat(); return; }
-    bildir("Hesap acildi. E-postana gelen dogrulama baglantisina tikla, sonra giris yap.");
+    bildir("Account created. Click the verification link in your email, then log in.");
   });
 
   document.getElementById("sifre-unuttum").addEventListener("click", async () => {
     const e = document.getElementById("eposta").value.trim();
-    if (!e) return bildir("Once e-posta adresini yaz.", true);
+    if (!e) return bildir("Enter your email address first.", true);
     const { error } = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.href });
-    bildir(error ? error.message : "Sifre yenileme baglantisi gonderildi.", !!error);
+    bildir(error ? error.message : "Password reset link sent.", !!error);
   });
 }
 
 /* ------------------------------------------------------------------- kabuk */
 const MENU = [
-  ["ilanlar",     "Ilanlar",      "▤"],
-  ["fiyatlar",    "Fiyatlar",     "$"],
-  ["kampanyalar", "Kampanyalar",  "%"],
-  ["siparisler",  "Siparisler",   "▦"],
-  ["talepler",    "Gelen kutusu", "✉"],
-  ["odeme",       "Odeme",        "▣"],
-  ["sayfalar",    "Site metinleri", "¶"],
-  ["sanatcilar",  "Sanatcilar",   "✎"],
-  ["ayarlar",     "Ayarlar",      "⚙"],
-  ["analitik",    "Analitik",     "◔"],
-  ["kullanicilar","Kullanicilar", "◍"],
-  ["gecmis",      "Gecmis",       "↺"],
+  ["ilanlar",     "Listings",     "▤"],
+  ["fiyatlar",    "Prices",       "$"],
+  ["kampanyalar", "Promotions",   "%"],
+  ["siparisler",  "Orders",       "▦"],
+  ["talepler",    "Inbox",        "✉"],
+  ["odeme",       "Payment",      "▣"],
+  ["sayfalar",    "Site texts",   "¶"],
+  ["sanatcilar",  "Artists",   "✎"],
+  ["ayarlar",     "Settings",     "⚙"],
+  ["analitik",    "Analytics",    "◔"],
+  ["kullanicilar","Users",        "◍"],
+  ["gecmis",      "History",      "↺"],
 ];
 
 function kabuk(icerik, aktif) {
@@ -171,7 +171,7 @@ function kabuk(icerik, aktif) {
     <aside class="ray">
       <div class="ust">
         <b>Visionary Object</b>
-        <span>Yonetim</span>
+        <span>Admin</span>
       </div>
       <nav>
         ${MENU.filter(m => m[0] !== "kullanicilar" || SAHIP())
@@ -181,23 +181,23 @@ function kabuk(icerik, aktif) {
       <div class="dip">
         <p>${esc(profil?.ad || profil?.eposta || "")}</p>
         <p style="text-transform:capitalize">${esc(profil?.rol || "")}</p>
-        <button class="btn btn--line btn--kucuk" id="cikis" style="margin-block-start:.6rem">Cikis</button>
+        <button class="btn btn--line btn--kucuk" id="cikis" style="margin-block-start:.6rem">Log out</button>
       </div>
     </aside>
     <main class="govde">
       <div class="cubuk">
         <div class="ara">
-          <label class="sr" for="genel-ara">Ilanlarda ara</label>
-          <input id="genel-ara" type="search" placeholder="Baslik, sanatci ya da ilan numarasi" value="${esc(durumState.arama)}">
+          <label class="sr" for="genel-ara">Search listings</label>
+          <input id="genel-ara" type="search" placeholder="Title, artist or listing number" value="${esc(durumState.arama)}">
         </div>
         <div class="eylemler" style="margin-inline-start:auto">
-          <a class="btn btn--line btn--kucuk" href="${esc(window.VO.SITE)}" target="_blank" rel="noopener">Siteyi gor</a>
-          <button class="btn btn--kucuk" id="yayinla">Yayinla</button>
+          <a class="btn btn--line btn--kucuk" href="${esc(window.VO.SITE)}" target="_blank" rel="noopener">View site</a>
+          <button class="btn btn--kucuk" id="yayinla">Publish</button>
         </div>
       </div>
       <div class="icerik" id="icerik">${ONIZLEME ? `<p class="uyari-serit uyari-serit--hata" style="border-color:var(--pnl-uyari);color:var(--pnl-uyari);background:#FDF9F0">
-        Onizleme modu. Veriler gercek, ekranlar gercek; ama Supabase bagli olmadigi icin
-        hicbir degisiklik kaydedilmez. Kurulum bitince bu serit kaybolur.</p>` : ""}${icerik}</div>
+        Preview mode. Real data, real screens; but since Supabase is not connected
+        no changes are saved. This banner disappears once setup is done.</p>` : ""}${icerik}</div>
     </main>
   </div>`;
 
@@ -219,14 +219,14 @@ function kabuk(icerik, aktif) {
 }
 
 async function yayinla() {
-  if (!YETKI()) return bildir("Yayinlama yetkin yok.", true);
+  if (!YETKI()) return bildir("You don't have publish permission.", true);
   const btn = document.getElementById("yayinla");
-  btn.disabled = true; btn.textContent = "Gonderiliyor";
+  btn.disabled = true; btn.textContent = "Publishing\u2026";
   const { error } = await sb.from("yayin_istek").insert({
     isteyen: oturum.user.id, mesaj: "Panelden istendi"
   });
   if (error) {
-    btn.disabled = false; btn.textContent = "Yayinla";
+    btn.disabled = false; btn.textContent = "Publish";
     return bildir("Yayin istegi gonderilemedi: " + error.message, true);
   }
   // Istegi hemen tetiklemeyi dene. GitHub'in zamanlanmis calismasi garantili
@@ -243,17 +243,17 @@ async function yayinla() {
     const d = await c.json().catch(() => ({}));
     hemen = d && d.durum === "tetiklendi";
   } catch (e) { /* tetik olmadiysa zamanlanmis akis devralir */ }
-  btn.disabled = false; btn.textContent = "Yayinla";
+  btn.disabled = false; btn.textContent = "Publish";
   bildir(hemen
-    ? "Yayin basladi. Site birkac dakika icinde guncellenir."
-    : "Yayin siraya alindi. En gec yarim saat icinde canliya alinir; aninda gerekiyorsa bilgisayardaki yayinla.bat ile de yayinlayabilirsin.");
+    ? "Publishing started. The site updates in a few minutes."
+    : "Publish queued. Live within half an hour; for instant publish use yayinla.bat on the computer.");
 }
 
 /* ---------------------------------------------------------------- ilanlar */
 const KATLAR = [["tablo","Paintings & Prints"],["obje","Handmade Objects"],["belge","Documents"],
                 ["rugs","Persian Rug"],["lighting","Lighting"],["sculpture","Sculpture"]];
-const DURUMLAR = [["taslak","Taslak"],["yayinda","Yayinda"],["rezerve","Rezerve"],
-                  ["satildi","Satildi"],["arsiv","Arsiv"]];
+const DURUMLAR = [["taslak","Draft"],["yayinda","Published"],["rezerve","Reserved"],
+                  ["satildi","Sold"],["arsiv","Archived"]];
 
 function durumRozet(d) {
   const sinif = d === "yayinda" ? "rozet--yayinda" : d === "taslak" ? "rozet--taslak"
@@ -263,7 +263,7 @@ function durumRozet(d) {
 }
 
 async function ilanlarSayfasi() {
-  kabuk(`<div class="yukleniyor">Ilanlar yukleniyor</div>`, "ilanlar");
+  kabuk(`<div class="yukleniyor">Loading listings</div>`, "ilanlar");
   const gvd = document.getElementById("icerik");
 
   let q = sb.from("ilanlar")
@@ -293,28 +293,28 @@ async function ilanlarSayfasi() {
   gvd.innerHTML = `
   <div class="ustbilgi">
     <div>
-      <h1>Ilanlar</h1>
-      <p>${count || 0} kayit. Bir satira tiklayarak ilanin tamamini duzenleyebilirsin.</p>
+      <h1>Listings</h1>
+      <p>${count || 0} records. Click a row to edit the full listing.</p>
     </div>
     <div class="eylemler">
-      <button class="btn" id="yeni-ilan">Yeni ilan</button>
+      <button class="btn" id="yeni-ilan">New listing</button>
     </div>
   </div>
 
   <div class="kutu" style="padding:.85rem 1rem;margin-block-end:1rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:end">
     <div style="min-inline-size:170px">
-      <label for="f-durum">Durum</label>
-      <select id="f-durum">${secenek([["hepsi","Hepsi"], ...DURUMLAR], durumState.suzgec)}</select>
+      <label for="f-durum">Status</label>
+      <select id="f-durum">${secenek([["hepsi","All"], ...DURUMLAR], durumState.suzgec)}</select>
     </div>
     <div style="min-inline-size:190px">
-      <label for="f-kat">Kategori</label>
-      <select id="f-kat">${secenek([["hepsi","Hepsi"], ...KATLAR], durumState.kat)}</select>
+      <label for="f-kat">Category</label>
+      <select id="f-kat">${secenek([["hepsi","All"], ...KATLAR], durumState.kat)}</select>
     </div>
     <div style="min-inline-size:190px">
-      <label for="f-sira">Siralama</label>
-      <select id="f-sira">${secenek([["no-desc","En yeni ilan no"],["no-asc","En eski ilan no"],
-        ["guncellendi-desc","Son degisen"],["baslik-asc","Baslik A-Z"],["fiyat-desc","Fiyat yuksekten"],
-        ["fiyat-asc","Fiyat dusukten"]], durumState.siralama)}</select>
+      <label for="f-sira">Sort</label>
+      <select id="f-sira">${secenek([["no-desc","Newest first"],["no-asc","Oldest first"],
+        ["guncellendi-desc","Recently changed"],["baslik-asc","Title A-Z"],["fiyat-desc","Price: high to low"],
+        ["fiyat-asc","Price: low to high"]], durumState.siralama)}</select>
     </div>
   </div>
 
@@ -322,8 +322,8 @@ async function ilanlarSayfasi() {
     ${!data.length ? `<div class="bos">Bu suzgece uyan ilan yok.</div>` : `
     <table>
       <thead><tr>
-        <th style="inline-size:70px">Gorsel</th><th>Baslik</th><th>Sanatci</th>
-        <th>Olcu</th><th>Fiyat</th><th>Durum</th><th style="inline-size:90px"></th>
+        <th style="inline-size:70px">Image</th><th>Title</th><th>Artist</th>
+        <th>Size</th><th>Price</th><th>Status</th><th style="inline-size:90px"></th>
       </tr></thead>
       <tbody>${data.map(r => {
         const kapak = (r.kareler || []).slice().sort((a, b) => a.sira - b.sira)[0];
@@ -336,18 +336,18 @@ async function ilanlarSayfasi() {
           </td>
           <td>${esc(r.sanatci || "-")}</td>
           <td class="sayisal">${r.olcu_w && r.olcu_h ? `${r.olcu_w} × ${r.olcu_h} in` : "-"}</td>
-          <td class="sayisal">${r.fiyat ? esc(para(r.fiyat, r.para_birimi)) + (r.fiyat_gizli ? " <span style='color:var(--pnl-ink-3);font-size:.75rem'>(gizli)</span>" : "") : "<span style='color:var(--pnl-uyari)'>girilmedi</span>"}</td>
+          <td class="sayisal">${r.fiyat ? esc(para(r.fiyat, r.para_birimi)) + (r.fiyat_gizli ? " <span style='color:var(--pnl-ink-3);font-size:.75rem'>(hidden)</span>" : "") : "<span style='color:var(--pnl-uyari)'>not entered</span>"}</td>
           <td>${durumRozet(r.durum)}</td>
-          <td><button class="btn btn--line btn--kucuk" data-duzenle="${r.id}">Duzenle</button></td>
+          <td><button class="btn btn--line btn--kucuk" data-duzenle="${r.id}">Edit</button></td>
         </tr>`;
       }).join("")}</tbody>
     </table>`}
   </div>
 
   <div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-block-start:1.25rem">
-    <button class="btn btn--line btn--kucuk" id="onceki" ${durumState.sayfa <= 1 ? "disabled" : ""}>Onceki</button>
+    <button class="btn btn--line btn--kucuk" id="onceki" ${durumState.sayfa <= 1 ? "disabled" : ""}>Previous</button>
     <span class="sayisal" style="color:var(--pnl-ink-2)">${durumState.sayfa} / ${sayfaSayisi}</span>
-    <button class="btn btn--line btn--kucuk" id="sonraki" ${durumState.sayfa >= sayfaSayisi ? "disabled" : ""}>Sonraki</button>
+    <button class="btn btn--line btn--kucuk" id="sonraki" ${durumState.sayfa >= sayfaSayisi ? "disabled" : ""}>Next</button>
   </div>`;
 
   gvd.querySelectorAll("tbody tr").forEach(tr =>
@@ -368,15 +368,15 @@ async function yeniIlan() {
   const { data: enB } = await sb.from("ilanlar").select("no").order("no", { ascending: false }).limit(1);
   const no = (enB?.[0]?.no || 0) + 1;
   const { data, error } = await sb.from("ilanlar")
-    .insert({ no, slug: "ilan-" + no, baslik: "Yeni ilan", durum: "taslak" })
+    .insert({ no, slug: "ilan-" + no, baslik: "New listing", durum: "taslak" })
     .select("id").single();
   if (error) return bildir(error.message, true);
   location.hash = "#/ilan/" + data.id;
 }
 
 /* ------------------------------------------------------------ ilan duzenle */
-const ROLLER = [["tam","Tam gorunum"],["aci","Acili"],["detay","Detay"],["imza","Imza"],
-  ["sertifika","Sertifika"],["etiket","Etiket"],["plaka","Kunye plakasi"],["arka","Arka yuz"],["olcu","Olcu"]];
+const ROLLER = [["tam","Full view"],["aci","Angled"],["detay","Detail"],["imza","Signature"],
+  ["sertifika","Certificate"],["etiket","Label"],["plaka","Maker's plaque"],["arka","Back"],["olcu","Dimensions"]];
 
 const FACET = {
   subject: [["landscape","Landscape"],["figurative","People"],["architecture","Architecture"],
@@ -392,11 +392,11 @@ const FACET = {
     ["Purple","Purple"],["Orange","Orange"],["Red","Red"],["Pink","Pink"],["Green","Green"],
     ["Gold","Gold"],["Yellow","Yellow"],["White","White"],["Silver","Silver"]],
 };
-const DONEMLER = [["","Secilmedi"],["18th-and-earlier","18th Century and Earlier"],
+const DONEMLER = [["","Not selected"],["18th-and-earlier","18th Century and Earlier"],
   ["19th","19th Century"],["20th","20th Century"],["21st","21st Century and Contemporary"]];
 
 async function ilanSayfasi(id) {
-  kabuk(`<div class="yukleniyor">Ilan yukleniyor</div>`, "ilanlar");
+  kabuk(`<div class="yukleniyor">Loading listing</div>`, "ilanlar");
   const { data: il, error } = await sb.from("ilanlar").select("*").eq("id", id).single();
   if (error) { document.getElementById("icerik").innerHTML =
     `<p class="uyari-serit uyari-serit--hata">${esc(error.message)}</p>`; return; }
@@ -424,68 +424,68 @@ function ilanCiz(il, kareler) {
   <div class="ustbilgi">
     <div>
       <h1>${esc(il.baslik || "Adsiz ilan")}</h1>
-      <p>${esc(il.slug)} · VO-${il.no} · son degisiklik ${new Date(il.guncellendi).toLocaleString("tr-TR")}</p>
+      <p>${esc(il.slug)} · VO-${il.no} · son degisiklik ${new Date(il.guncellendi).toLocaleString("en-US")}</p>
     </div>
     <div class="eylemler">
       <a class="btn btn--line btn--kucuk" href="#/ilanlar">Listeye don</a>
       <a class="btn btn--line btn--kucuk" target="_blank" rel="noopener"
          href="${esc(window.VO.SITE)}/item/${esc(il.slug)}.html">Sitede gor</a>
       <button class="btn btn--tehlike btn--kucuk" id="ilan-sil">Ilani sil</button>
-      <button class="btn" id="kaydet">Kaydet</button>
+      <button class="btn" id="kaydet">Save</button>
     </div>
   </div>
 
   <div class="sekmeler" role="tablist">
-    <button role="tab" aria-selected="true"  data-sekme="gorsel">Gorseller</button>
-    <button role="tab" aria-selected="false" data-sekme="icerik">Icerik</button>
-    <button role="tab" aria-selected="false" data-sekme="fiyat">Fiyat ve durum</button>
-    <button role="tab" aria-selected="false" data-sekme="siniflandirma">Siniflandirma</button>
+    <button role="tab" aria-selected="true"  data-sekme="gorsel">Images</button>
+    <button role="tab" aria-selected="false" data-sekme="icerik">Content</button>
+    <button role="tab" aria-selected="false" data-sekme="fiyat">Price & status</button>
+    <button role="tab" aria-selected="false" data-sekme="siniflandirma">Classification</button>
     <button role="tab" aria-selected="false" data-sekme="seo">SEO</button>
   </div>
 
   <form id="ilan-form">
   <section data-panel="gorsel">
     <p style="color:var(--pnl-ink-2);margin-block-end:1rem">
-      Listedeki ilk gorsel kapaktir. Suruklerek sirayi degistirebilirsin.</p>
+      The first image is the cover. Drag to reorder.</p>
     <div class="kareler" id="kare-liste"></div>
     <div class="birak" id="birak-alani" style="margin-block-start:1rem">
-      <p>Fotograflari buraya surukle ya da
+      <p>Drag photos here or
         <label style="display:inline;text-decoration:underline;cursor:pointer;color:var(--pnl-ink)">
-          bilgisayardan sec<input type="file" id="dosya-sec" accept="image/*" multiple hidden></label></p>
-      <p class="ipucu" style="margin-block-start:.4rem">JPG, PNG, HEIC ya da WEBP. Tek dosya en fazla 50 MB.</p>
+          choose from your computer<input type="file" id="dosya-sec" accept="image/*" multiple hidden></label></p>
+      <p class="ipucu" style="margin-block-start:.4rem">JPG, PNG, HEIC or WEBP. Max 50 MB per file.</p>
     </div>
     <div id="yukleme-durum" style="margin-block-start:.75rem"></div>
   </section>
 
   <section data-panel="icerik" hidden>
-    ${alanKutu("baslik", "Ilan basligi", il.baslik, "text", "Sitede ve arama sonucunda gorunen ad.")}
-    ${alanKutu("aciklama", "Aciklama", il.aciklama, "textarea", "Alicinin okudugu metin. Em cizgi kullanma.")}
+    ${alanKutu("baslik", "Listing title", il.baslik, "text", "The name shown on the site and in search results.")}
+    ${alanKutu("aciklama", "Description", il.aciklama, "textarea", "The text buyers read. Do not use em dashes.")}
     <div class="ikili">
-      ${alanKutu("sanatci", "Sanatci", il.sanatci)}
-      ${alanKutu("eser_adi", "Eserin adi", il.eser_adi)}
+      ${alanKutu("sanatci", "Artist", il.sanatci)}
+      ${alanKutu("eser_adi", "Work title", il.eser_adi)}
     </div>
     <div class="uclu">
-      ${alanKutu("donem", "Donem", il.donem, "text", "Ornek: 20th century")}
-      ${alanKutu("teknik", "Teknik", il.teknik, "text", "Ornek: oil on canvas")}
-      ${alanKutu("baski", "Baski / edisyon", il.baski)}
+      ${alanKutu("donem", "Period", il.donem, "text", "Example: 20th century")}
+      ${alanKutu("teknik", "Technique", il.teknik, "text", "Example: oil on canvas")}
+      ${alanKutu("baski", "Edition", il.baski)}
     </div>
     <div class="uclu">
-      ${alanKutu("galeri_adi", "Galeri", il.galeri_adi)}
-      ${alanKutu("ref", "Referans no", il.ref)}
-      ${alanKutu("kaynak_dosya", "Kaynak dosya", il.kaynak_dosya)}
+      ${alanKutu("galeri_adi", "Gallery", il.galeri_adi)}
+      ${alanKutu("ref", "Reference no", il.ref)}
+      ${alanKutu("kaynak_dosya", "Source file", il.kaynak_dosya)}
     </div>
-    ${alanKutu("etiket", "Arka etiket metni", il.etiket, "textarea")}
-    ${alanKutu("belge", "Sertifika notu", il.belge, "textarea")}
-    ${alanKutu("biyografi", "Sanatci biyografisi", il.biyografi, "textarea")}
-    ${alanKutu("aciklama_not", "Ic not (sitede gorunmez)", il.aciklama_not, "textarea")}
+    ${alanKutu("etiket", "Back label text", il.etiket, "textarea")}
+    ${alanKutu("belge", "Certificate note", il.belge, "textarea")}
+    ${alanKutu("biyografi", "Artist biography", il.biyografi, "textarea")}
+    ${alanKutu("aciklama_not", "Internal note (hidden on site)", il.aciklama_not, "textarea")}
   </section>
 
   <section data-panel="fiyat" hidden>
     <div class="uclu">
-      ${alanKutu("fiyat", "Fiyat", il.fiyat, "number", "Bos birakirsan sitede Price Upon Request yazar.")}
-      ${alanKutu("fiyat_eski", "Eski fiyat", il.fiyat_eski, "number", "Doldurursan sitede indirim gorunur.")}
+      ${alanKutu("fiyat", "Price", il.fiyat, "number", "Blank shows Price Upon Request on the site.")}
+      ${alanKutu("fiyat_eski", "Old price", il.fiyat_eski, "number", "Filled shows a discount on the site.")}
       <div class="alan">
-        <label for="a-para_birimi">Para birimi</label>
+        <label for="a-para_birimi">Currency</label>
         <select id="a-para_birimi" name="para_birimi">
           ${["USD","EUR","GBP","TRY"].map(p => `<option ${il.para_birimi === p ? "selected" : ""}>${p}</option>`).join("")}
         </select>
@@ -493,50 +493,50 @@ function ilanCiz(il, kareler) {
     </div>
     <div class="ikili">
       <div class="alan">
-        <label for="a-durum">Durum</label>
+        <label for="a-durum">Status</label>
         <select id="a-durum" name="durum">${DURUMLAR.map(([v, ad]) =>
           `<option value="${v}" ${il.durum === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}</select>
-        <p class="ipucu">Yalnizca "Yayinda" olan ilanlar sitede gorunur.</p>
+        <p class="ipucu">Only "Published" listings appear on the site.</p>
       </div>
       <div class="alan">
-        <label for="a-kat">Kategori</label>
+        <label for="a-kat">Category</label>
         <select id="a-kat" name="kat">${KATLAR.map(([v, ad]) =>
           `<option value="${v}" ${il.kat === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}</select>
       </div>
     </div>
     <div class="uclu">
-      ${alanKutu("olcu_w", "Genislik (inc)", il.olcu_w, "number")}
-      ${alanKutu("olcu_h", "Yukseklik (inc)", il.olcu_h, "number")}
-      ${alanKutu("olcu_d", "Derinlik (inc)", il.olcu_d, "number")}
+      ${alanKutu("olcu_w", "Width (in)", il.olcu_w, "number")}
+      ${alanKutu("olcu_h", "Height (in)", il.olcu_h, "number")}
+      ${alanKutu("olcu_d", "Depth (in)", il.olcu_d, "number")}
     </div>
-    ${alanKutu("olcu_nesi", "Olcu neyin", il.olcu_nesi, "text", "Ornek: outside of frame, sheet, canvas")}
+    ${alanKutu("olcu_nesi", "Measurement basis", il.olcu_nesi, "text", "Example: outside of frame, sheet, canvas")}
     <div class="etiketler" style="margin-block-start:.5rem">
-      <label><input type="checkbox" id="a-fiyat_gizli" ${il.fiyat_gizli ? "checked" : ""}>Fiyati sitede gizle</label>
-      <label><input type="checkbox" id="a-pazarlik" ${il.pazarlik ? "checked" : ""}>Teklife acik</label>
+      <label><input type="checkbox" id="a-fiyat_gizli" ${il.fiyat_gizli ? "checked" : ""}>Hide price on site</label>
+      <label><input type="checkbox" id="a-pazarlik" ${il.pazarlik ? "checked" : ""}>Open to offers</label>
       <label><input type="checkbox" id="a-satin_alinabilir" ${il.satin_alinabilir ? "checked" : ""}>Tek tikla satin alinabilir</label>
-      <label><input type="checkbox" id="a-one_cikan" ${il.one_cikan ? "checked" : ""}>Ana sayfada one cikar</label>
+      <label><input type="checkbox" id="a-one_cikan" ${il.one_cikan ? "checked" : ""}>Feature on homepage</label>
     </div>
   </section>
 
   <section data-panel="siniflandirma" hidden>
     <p style="color:var(--pnl-ink-2);margin-block-end:1.25rem">
-      Bunlar sitedeki suzgecleri besler. Alici soldaki filtrelerden bunlarla arar.</p>
-    <div class="alan"><label>Konu</label>${kutular("subject", facet.subject)}</div>
-    <div class="alan"><label>Teknik</label>${kutular("medium", facet.medium)}</div>
-    <div class="alan"><label>Uslup</label>${kutular("style", facet.style)}</div>
-    <div class="alan"><label>Cerceve</label>${kutular("framing", facet.framing)}</div>
-    <div class="alan"><label>Renk</label>${kutular("color", facet.color)}</div>
+      These feed the site filters. Buyers search with these in the left filters.</p>
+    <div class="alan"><label>Subject</label>${kutular("subject", facet.subject)}</div>
+    <div class="alan"><label>Medium</label>${kutular("medium", facet.medium)}</div>
+    <div class="alan"><label>Style</label>${kutular("style", facet.style)}</div>
+    <div class="alan"><label>Frame</label>${kutular("framing", facet.framing)}</div>
+    <div class="alan"><label>Color</label>${kutular("color", facet.color)}</div>
     <div class="alan" style="max-inline-size:340px">
-      <label for="a-period">Yuzyil</label>
+      <label for="a-period">Century</label>
       <select id="a-period">${DONEMLER.map(([v, ad]) =>
         `<option value="${v}" ${(facet.period || "") === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}</select>
     </div>
   </section>
 
   <section data-panel="seo" hidden>
-    ${alanKutu("slug", "Adres (slug)", il.slug, "text", "Degistirirsen eski adres kirilir. Zorunlu olmadikca dokunma.")}
-    ${alanKutu("seo_baslik", "Arama basligi", il.seo_baslik, "text", "Bos birakirsan ilan basligi kullanilir. 60 karakteri gecmesin.")}
-    ${alanKutu("seo_aciklama", "Arama aciklamasi", il.seo_aciklama, "textarea", "155 karakteri gecmesin.")}
+    ${alanKutu("slug", "Address (slug)", il.slug, "text", "Changing it breaks the old address. Do not touch unless necessary.")}
+    ${alanKutu("seo_baslik", "Search title", il.seo_baslik, "text", "Blank uses the listing title. Keep under 60 characters.")}
+    ${alanKutu("seo_aciklama", "Search description", il.seo_aciklama, "textarea", "Keep under 155 characters.")}
     <div class="kutu" style="padding:1rem;max-inline-size:640px">
       <p style="font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--pnl-ink-3)">Google onizleme</p>
       <p id="onizleme-baslik" style="color:#1a0dab;font-size:1.15rem;margin-block-start:.4rem"></p>
@@ -567,10 +567,10 @@ function ilanCiz(il, kareler) {
 
   document.getElementById("kaydet").addEventListener("click", () => ilanKaydet(il, kareler));
   document.getElementById("ilan-sil").addEventListener("click", async () => {
-    if (!await sor("Bu ilan silinsin mi?")) return;
+    if (!await sor("Delete this listing?")) return;
     const { error } = await sb.from("ilanlar").delete().eq("id", il.id);
     if (error) return bildir(error.message, true);
-    bildir("Ilan silindi."); location.hash = "#/ilanlar";
+    bildir("Listing deleted."); location.hash = "#/ilanlar";
   });
 }
 
@@ -578,21 +578,21 @@ function ilanCiz(il, kareler) {
 function kareleriCiz(il, kareler) {
   const kap = document.getElementById("kare-liste");
   if (!kareler.length) {
-    kap.innerHTML = `<p style="color:var(--pnl-ink-2)">Bu ilanda henuz gorsel yok.</p>`;
+    kap.innerHTML = `<p style="color:var(--pnl-ink-2)">No images on this listing yet.</p>`;
     return;
   }
   kap.innerHTML = kareler.map((k, i) => `
     <figure class="kare" draggable="true" data-kid="${k.id}" data-i="${i}" style="margin:0">
-      ${i === 0 ? `<span class="kapak-rozet">Kapak</span>` : ""}
-      <button type="button" class="sil" data-sil="${k.id}" aria-label="Bu gorseli kaldir">×</button>
-      <span class="tut" aria-hidden="true">surukle</span>
+      ${i === 0 ? `<span class="kapak-rozet">Cover</span>` : ""}
+      <button type="button" class="sil" data-sil="${k.id}" aria-label="Remove this image">×</button>
+      <span class="tut" aria-hidden="true">drag</span>
       <img loading="lazy" alt="${esc(k.alt_metin || "")}" src="${esc(gorselUrl(k.yol, 400))}">
       <div class="alt-bar">
-        <select data-rol="${k.id}" aria-label="Gorselin rolu">
+        <select data-rol="${k.id}" aria-label="Image role">
           ${ROLLER.map(([v, ad]) => `<option value="${v}" ${k.rol === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}
         </select>
         <input type="text" data-alt="${k.id}" value="${esc(k.alt_metin || "")}"
-               placeholder="Gorsel aciklamasi" style="min-block-size:36px;font-size:.8125rem">
+               placeholder="Image description" style="min-block-size:36px;font-size:.8125rem">
       </div>
     </figure>`).join("");
 
@@ -620,7 +620,7 @@ function kareleriCiz(il, kareler) {
 
   kap.querySelectorAll("[data-sil]").forEach(b => b.addEventListener("click", async e => {
     e.stopPropagation();
-    if (!await sor("Bu gorsel ilandan kaldirilsin mi?", "Kaldir")) return;
+    if (!await sor("Remove this image from the listing?", "Remove")) return;
     const kid = Number(b.dataset.sil);
     const k = kareler.find(x => x.id === kid);
     const { error } = await sb.from("kareler").delete().eq("id", kid);
@@ -630,12 +630,12 @@ function kareleriCiz(il, kareler) {
     kareler.splice(i, 1);
     await siraKaydet(kareler);
     kareleriCiz(il, kareler);
-    bildir("Gorsel kaldirildi.");
+    bildir("Image removed.");
   }));
 
   kap.querySelectorAll("[data-rol]").forEach(s => s.addEventListener("change", async () => {
     const { error } = await sb.from("kareler").update({ rol: s.value }).eq("id", Number(s.dataset.rol));
-    bildir(error ? error.message : "Rol guncellendi.", !!error);
+    bildir(error ? error.message : "Role updated.", !!error);
   }));
   kap.querySelectorAll("[data-alt]").forEach(inp => inp.addEventListener("change", async () => {
     const { error } = await sb.from("kareler").update({ alt_metin: inp.value }).eq("id", Number(inp.dataset.alt));
@@ -665,11 +665,11 @@ function yuklemeKur(il, kareler) {
 
   async function yukle(dosyalar) {
     const resimler = dosyalar.filter(f => /^image\//.test(f.type) || /\.(hei[cf]|jpe?g|png|webp|tiff?)$/i.test(f.name));
-    if (!resimler.length) return bildir("Gorsel dosyasi bulunamadi.", true);
+    if (!resimler.length) return bildir("Image file not found.", true);
     let sayac = 0;
     for (const dosya of resimler) {
       sayac++;
-      durum.innerHTML = `<p class="ipucu">${sayac} / ${resimler.length} yukleniyor: ${esc(dosya.name)}</p>`;
+      durum.innerHTML = `<p class="ipucu">${sayac} / ${resimler.length} uploading: ${esc(dosya.name)}</p>`;
       const uzanti = (dosya.name.split(".").pop() || "jpg").toLowerCase();
       const yol = `${il.slug}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${uzanti}`;
       const { error: yErr } = await sb.storage.from("gorseller")
@@ -687,7 +687,7 @@ function yuklemeKur(il, kareler) {
     }
     durum.innerHTML = "";
     kareleriCiz(il, kareler);
-    bildir(`${sayac} gorsel eklendi.`);
+    bildir(`${sayac} images added.`);
   }
 }
 
@@ -742,22 +742,22 @@ async function ilanKaydet(il) {
   };
 
   const tire = Object.values(yeni).filter(v => typeof v === "string" && /[–—]/.test(v));
-  if (tire.length) return bildir("Metinlerde uzun tire var. Sitenin kurali geregi yalnizca kisa tire kullanilir.", true);
-  if (!yeni.baslik) return bildir("Baslik bos birakilamaz.", true);
-  if (!/^[a-z0-9-]+$/.test(yeni.slug)) return bildir("Adres yalnizca kucuk harf, rakam ve tire icerebilir.", true);
+  if (tire.length) return bildir("Long dashes found. Site rule: use short hyphens only.", true);
+  if (!yeni.baslik) return bildir("Title cannot be blank.", true);
+  if (!/^[a-z0-9-]+$/.test(yeni.slug)) return bildir("Address may only contain lowercase letters, digits and hyphens.", true);
 
   const btn = document.getElementById("kaydet");
   btn.disabled = true; btn.textContent = "Kaydediliyor";
   const { error } = await sb.from("ilanlar").update(yeni).eq("id", il.id);
-  btn.disabled = false; btn.textContent = "Kaydet";
+  btn.disabled = false; btn.textContent = "Save";
   if (error) return bildir(error.message, true);
-  bildir("Kaydedildi. Sitede gorunmesi icin Yayinla.");
+  bildir("Saved. Publish to show on the site.");
   Object.assign(il, yeni);
 }
 
 /* --------------------------------------------------------------- fiyatlar */
 async function fiyatSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "fiyatlar");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "fiyatlar");
   const { data, error } = await sb.from("ilanlar")
     .select("id,no,slug,baslik,sanatci,fiyat,fiyat_eski,para_birimi,fiyat_gizli,durum")
     .order("no");
@@ -767,19 +767,19 @@ async function fiyatSayfasi() {
   const eksik = data.filter(d => d.fiyat == null).length;
   gvd.innerHTML = `
   <div class="ustbilgi">
-    <div><h1>Fiyatlar</h1>
-      <p>Butun ilanlarin fiyatini tek ekrandan girebilirsin. Bir alani doldurup baska yere tikladiginda kaydedilir.</p></div>
+    <div><h1>Prices</h1>
+      <p>Enter all listings' prices from one screen. Filling a field and clicking elsewhere saves it.</p></div>
   </div>
   <div class="ozet">
-    <div><b>${data.length}</b><span>Ilan</span></div>
-    <div><b>${data.length - eksik}</b><span>Fiyati girilmis</span></div>
-    <div><b>${eksik}</b><span>Fiyat bekleyen</span></div>
+    <div><b>${data.length}</b><span>Listings</span></div>
+    <div><b>${data.length - eksik}</b><span>With price</span></div>
+    <div><b>${eksik}</b><span>Awaiting price</span></div>
   </div>
   <div class="kutu" style="overflow-x:auto">
     <table><thead><tr>
-      <th>No</th><th>Baslik</th><th>Sanatci</th><th style="inline-size:140px">Fiyat</th>
-      <th style="inline-size:140px">Eski fiyat</th><th style="inline-size:90px">Birim</th>
-      <th style="inline-size:80px">Gizli</th><th>Durum</th>
+      <th>No</th><th>Title</th><th>Artist</th><th style="inline-size:140px">Price</th>
+      <th style="inline-size:140px">Old price</th><th style="inline-size:90px">Currency</th>
+      <th style="inline-size:80px">Hidden</th><th>Status</th>
     </tr></thead><tbody>
     ${data.map(d => `<tr>
       <td class="sayisal">${d.no}</td>
@@ -793,7 +793,7 @@ async function fiyatSayfasi() {
         ${["USD","EUR","GBP","TRY"].map(p => `<option ${d.para_birimi === p ? "selected" : ""}>${p}</option>`).join("")}
       </select></td>
       <td style="text-align:center"><input type="checkbox" data-f="fiyat_gizli" data-id="${d.id}"
-           ${d.fiyat_gizli ? "checked" : ""} aria-label="Fiyati gizle"></td>
+           ${d.fiyat_gizli ? "checked" : ""} aria-label="Hide price"></td>
       <td>${durumRozet(d.durum)}</td>
     </tr>`).join("")}
     </tbody></table>
@@ -813,16 +813,16 @@ async function fiyatSayfasi() {
 
 /* --------------------------------------------------------------- sayfalar */
 async function sayfalarSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "sayfalar");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "sayfalar");
   const { data, error } = await sb.from("sayfalar").select("*").order("anahtar");
   const gvd = document.getElementById("icerik");
   if (error) return gvd.innerHTML = `<p class="uyari-serit uyari-serit--hata">${esc(error.message)}</p>`;
 
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Site metinleri</h1>
-    <p>Ana sayfa, hakkinda, kargo, iade gibi sabit sayfalarin metni. Ilan aciklamalari burada degil, ilanin kendi sayfasinda.</p>
-    <p class="ipucu" style="margin-block-start:.4rem">Metni BOS birakirsan sitede hazir yazilmis profesyonel metin gorunur.
-       Buraya bir sey yazarsan o sayfada senin yazdigin metin hazir metnin YERINE gecer; bu yuzden ya tam metni yaz ya da bos birak.</p></div></div>
+  <div class="ustbilgi"><div><h1>Site texts</h1>
+    <p>Text of fixed pages like home, about, shipping, returns. Listing descriptions live on each listing's own page.</p>
+    <p class="ipucu" style="margin-block-start:.4rem">If you leave the text BLANK, the site shows professionally pre-written text.
+       Anything you write here REPLACES the pre-written text on that page; so either write the full text or leave it blank.</p></div></div>
   ${data.map(s => `
     <details class="kutu" style="margin-block-end:.75rem">
       <summary style="padding:1rem;cursor:pointer;display:flex;justify-content:space-between;gap:1rem">
@@ -840,7 +840,7 @@ async function sayfalarSayfasi() {
           <div class="alan"><label for="s-sa-${s.anahtar}">Arama aciklamasi</label>
             <input id="s-sa-${s.anahtar}" value="${esc(s.seo_aciklama || "")}"></div>
         </div>
-        <button class="btn btn--kucuk" data-sayfa="${s.anahtar}">Kaydet</button>
+        <button class="btn btn--kucuk" data-sayfa="${s.anahtar}">Save</button>
       </div>
     </details>`).join("")}`;
 
@@ -853,29 +853,29 @@ async function sayfalarSayfasi() {
       seo_aciklama: document.getElementById("s-sa-" + a).value,
       guncellendi: new Date().toISOString()
     }).eq("anahtar", a);
-    bildir(error ? error.message : "Sayfa kaydedildi.", !!error);
+    bildir(error ? error.message : "Page saved.", !!error);
   }));
 }
 
 /* ------------------------------------------------------------- sanatcilar */
 async function sanatcilarSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "sanatcilar");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "sanatcilar");
   const { data } = await sb.from("sanatcilar").select("*").order("ad");
   const gvd = document.getElementById("icerik");
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Sanatcilar</h1>
-    <p>Buraya girilen biyografi, o sanatcinin butun ilanlarinda gorunur.</p></div>
-    <div class="eylemler"><button class="btn" id="yeni-sanatci">Yeni sanatci</button></div></div>
+  <div class="ustbilgi"><div><h1>Artists</h1>
+    <p>The biography entered here appears on all of that artist's listings.</p></div>
+    <div class="eylemler"><button class="btn" id="yeni-sanatci">New artist</button></div></div>
   <div class="kutu" style="overflow-x:auto">
     ${!data?.length ? `<div class="bos">Henuz sanatci kaydi yok.</div>` : `
-    <table><thead><tr><th>Ad</th><th>Dogum</th><th>Olum</th><th>Ulke</th><th>Biyografi</th><th></th></tr></thead>
+    <table><thead><tr><th>Name</th><th>Born</th><th>Died</th><th>Country</th><th>Biography</th><th></th></tr></thead>
     <tbody>${data.map(s => `<tr>
       <td><input value="${esc(s.ad)}" data-s="ad" data-id="${s.id}"></td>
       <td><input value="${esc(s.dogum || "")}" data-s="dogum" data-id="${s.id}" style="inline-size:90px"></td>
       <td><input value="${esc(s.olum || "")}" data-s="olum" data-id="${s.id}" style="inline-size:90px"></td>
       <td><input value="${esc(s.ulke || "")}" data-s="ulke" data-id="${s.id}" style="inline-size:120px"></td>
       <td><textarea data-s="biyografi" data-id="${s.id}" rows="2" style="min-block-size:44px">${esc(s.biyografi || "")}</textarea></td>
-      <td><button class="btn btn--tehlike btn--kucuk" data-sil-s="${s.id}">Sil</button></td>
+      <td><button class="btn btn--tehlike btn--kucuk" data-sil-s="${s.id}">Delete</button></td>
     </tr>`).join("")}</tbody></table>`}
   </div>`;
 
@@ -885,7 +885,7 @@ async function sanatcilarSayfasi() {
     if (error) bildir(error.message, true);
   }));
   gvd.querySelectorAll("[data-sil-s]").forEach(b => b.addEventListener("click", async () => {
-    if (!await sor("Sanatci kaydi silinsin mi?")) return;
+    if (!await sor("Delete this artist record?")) return;
     await sb.from("sanatcilar").delete().eq("id", Number(b.dataset.silS));
     sanatcilarSayfasi();
   }));
@@ -898,12 +898,12 @@ async function sanatcilarSayfasi() {
 
 /* ---------------------------------------------------------------- ayarlar */
 async function ayarlarSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "ayarlar");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "ayarlar");
   const { data } = await sb.from("ayarlar").select("*").order("anahtar");
   const gvd = document.getElementById("icerik");
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Ayarlar</h1>
-    <p>Marka adi, iletisim, konum ve fiyat politikasi. Degistirdikten sonra Yayinla demen gerekir.</p></div></div>
+  <div class="ustbilgi"><div><h1>Settings</h1>
+    <p>Brand name, contact, location and pricing policy. After changing, press Publish.</p></div></div>
   ${(data || []).map(a => `
     <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
       <h3 style="text-transform:capitalize">${esc(a.anahtar.replace(/_/g, " "))}</h3>
@@ -913,10 +913,10 @@ async function ayarlarSayfasi() {
         <div class="alan" style="max-inline-size:480px">
           <label for="ay-${a.anahtar}-${k}" style="text-transform:capitalize">${esc(k.replace(/_/g, " "))}</label>
           ${typeof v === "boolean"
-            ? `<label class="etiketler" style="margin:0"><input type="checkbox" id="ay-${a.anahtar}-${k}" ${v ? "checked" : ""}> Acik</label>`
+            ? `<label class="etiketler" style="margin:0"><input type="checkbox" id="ay-${a.anahtar}-${k}" ${v ? "checked" : ""}> On</label>`
             : `<input id="ay-${a.anahtar}-${k}" value="${esc(v)}">`}
         </div>`).join("")}
-      <button class="btn btn--kucuk" data-ayar="${a.anahtar}">Kaydet</button>
+      <button class="btn btn--kucuk" data-ayar="${a.anahtar}">Save</button>
     </div>`).join("")}`;
 
   gvd.querySelectorAll("[data-ayar]").forEach(b => b.addEventListener("click", async () => {
@@ -936,34 +936,34 @@ async function ayarlarSayfasi() {
     }
     const { error } = await sb.from("ayarlar")
       .update({ deger: yeni, guncellendi: new Date().toISOString() }).eq("anahtar", a.anahtar);
-    bildir(error ? error.message : "Ayar kaydedildi.", !!error);
+    bildir(error ? error.message : "Settings saved.", !!error);
   }));
 }
 
 /* ------------------------------------------------------------ kullanicilar */
 async function kullanicilarSayfasi() {
   if (!SAHIP()) { location.hash = "#/ilanlar"; return; }
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "kullanicilar");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "kullanicilar");
   const { data } = await sb.from("profiller").select("*").order("olusturuldu");
   const gvd = document.getElementById("icerik");
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Kullanicilar</h1>
-    <p>Yeni kullanici davet etmek icin Supabase panelinden Authentication > Users > Invite user.
-       Kullanici ilk girisinde burada belirir; rolunu buradan degistirirsin.</p></div></div>
+  <div class="ustbilgi"><div><h1>Users</h1>
+    <p>To invite a new user, use Authentication > Users > Invite user in the Supabase panel.
+       A user appears here after first login; change their role here.</p></div></div>
   <div class="kutu" style="overflow-x:auto">
-    <table><thead><tr><th>E-posta</th><th>Ad</th><th>Rol</th><th>Son giris</th><th></th></tr></thead>
+    <table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Last login</th><th></th></tr></thead>
     <tbody>${(data || []).map(p => `<tr>
       <td>${esc(p.eposta)}</td>
       <td><input value="${esc(p.ad || "")}" data-p="ad" data-id="${p.id}"></td>
       <td><select data-p="rol" data-id="${p.id}" ${p.id === oturum.user.id ? "disabled" : ""}>
-        ${[["sahip","Sahip - her sey ve kullanici yonetimi"],
+        ${[["sahip","Owner - everything and user management"],
            ["yonetici","Yonetici - butun icerik"],
-           ["okur","Okur - sadece bakar"]].map(([v, ad]) =>
+           ["okur","Reader - view only"]].map(([v, ad]) =>
           `<option value="${v}" ${p.rol === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}
       </select></td>
-      <td style="color:var(--pnl-ink-3);font-size:.8125rem">${p.son_giris ? new Date(p.son_giris).toLocaleString("tr-TR") : "-"}</td>
+      <td style="color:var(--pnl-ink-3);font-size:.8125rem">${p.son_giris ? new Date(p.son_giris).toLocaleString("en-US") : "-"}</td>
       <td>${p.id === oturum.user.id ? "" :
-        `<button class="btn btn--tehlike btn--kucuk" data-sil-p="${p.id}">Kaldir</button>`}</td>
+        `<button class="btn btn--tehlike btn--kucuk" data-sil-p="${p.id}">Remove</button>`}</td>
     </tr>`).join("")}</tbody></table>
   </div>`;
 
@@ -972,45 +972,45 @@ async function kullanicilarSayfasi() {
     bildir(error ? error.message : "Guncellendi.", !!error);
   }));
   gvd.querySelectorAll("[data-sil-p]").forEach(b => b.addEventListener("click", async () => {
-    if (!await sor("Bu kullanicinin panele erisimi kaldirilsin mi?", "Kaldir")) return;
+    if (!await sor("Remove this user's panel access?", "Remove")) return;
     const { error } = await sb.from("profiller").delete().eq("id", b.dataset.silP);
     if (error) return bildir(error.message, true);
-    bildir("Erisim kaldirildi. Hesabi tamamen silmek icin Supabase > Authentication.");
+    bildir("Access removed. To delete the account entirely: Supabase > Authentication.");
     kullanicilarSayfasi();
   }));
 }
 
 /* ----------------------------------------------------------------- gecmis */
 async function gecmisSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "gecmis");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "gecmis");
   const [{ data: log }, { data: yayin }] = await Promise.all([
     sb.from("degisiklik_log").select("*").order("ne_zaman", { ascending: false }).limit(120),
     sb.from("yayin_istek").select("*").order("istendi", { ascending: false }).limit(15),
   ]);
   const gvd = document.getElementById("icerik");
-  const ISLEM = { INSERT: "eklendi", UPDATE: "degistirildi", DELETE: "silindi" };
+  const ISLEM = { INSERT: "added", UPDATE: "changed", DELETE: "deleted" };
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Gecmis</h1>
-    <p>Kim neyi ne zaman degistirdi ve yayin istekleri.</p></div></div>
+  <div class="ustbilgi"><div><h1>History</h1>
+    <p>Who changed what and when, plus publish requests.</p></div></div>
 
-  <h2 style="margin-block-end:.75rem">Yayin istekleri</h2>
+  <h2 style="margin-block-end:.75rem">Publish requests</h2>
   <div class="kutu" style="overflow-x:auto;margin-block-end:2rem">
     ${!yayin?.length ? `<div class="bos">Henuz yayin istegi yok.</div>` : `
-    <table><thead><tr><th>Istendi</th><th>Durum</th><th>Bitti</th><th>Mesaj</th></tr></thead>
+    <table><thead><tr><th>Requested</th><th>Status</th><th>Finished</th><th>Message</th></tr></thead>
     <tbody>${yayin.map(y => `<tr>
-      <td>${new Date(y.istendi).toLocaleString("tr-TR")}</td>
+      <td>${new Date(y.istendi).toLocaleString("en-US")}</td>
       <td>${esc(y.durum)}</td>
-      <td>${y.bitti ? new Date(y.bitti).toLocaleString("tr-TR") : "-"}</td>
+      <td>${y.bitti ? new Date(y.bitti).toLocaleString("en-US") : "-"}</td>
       <td style="font-size:.8125rem;color:var(--pnl-ink-2)">${esc(y.kayit || y.mesaj || "")}</td>
     </tr>`).join("")}</tbody></table>`}
   </div>
 
   <h2 style="margin-block-end:.75rem">Degisiklikler</h2>
   <div class="kutu" style="overflow-x:auto">
-    ${!log?.length ? `<div class="bos">Kayit yok.</div>` : `
-    <table><thead><tr><th>Zaman</th><th>Tablo</th><th>Kayit</th><th>Islem</th></tr></thead>
+    ${!log?.length ? `<div class="bos">No records.</div>` : `
+    <table><thead><tr><th>Time</th><th>Table</th><th>Record</th><th>Action</th></tr></thead>
     <tbody>${log.map(l => `<tr>
-      <td>${new Date(l.ne_zaman).toLocaleString("tr-TR")}</td>
+      <td>${new Date(l.ne_zaman).toLocaleString("en-US")}</td>
       <td>${esc(l.tablo)}</td>
       <td>${esc(l.kayit_id)}</td>
       <td>${esc(ISLEM[l.islem] || l.islem)}</td>
@@ -1047,15 +1047,15 @@ async function baslat() {
     profil = { id: "onizleme", ad: "Onizleme", rol: "sahip", eposta: "onizleme" };
     oturum = { user: { id: "onizleme" } };
     yonlendir();
-    setTimeout(() => bildir("Onizleme modu: gercek 270 ilan gorunuyor, degisiklikler kaydedilmez.", false), 400);
+    setTimeout(() => bildir("Preview mode: showing the real 270 listings, changes are not saved.", false), 400);
     return;
   }
   if (!window.VO || window.VO.URL.startsWith("BURAYA")) {
     kok.innerHTML = `<div class="giris"><div class="kutu" style="padding:2rem;max-inline-size:520px">
-      <h2>Panel henuz baglanmadi</h2>
+      <h2>Panel not connected yet</h2>
       <p style="color:var(--pnl-ink-2);margin-block-start:.75rem">
-        <code>admin/config.js</code> dosyasindaki iki degeri Supabase projesinden alip yapistir,
-        sonra bu sayfayi yenile. Adim adim anlatim <code>KURULUM.md</code> icinde.</p>
+        <code>admin/config.js</code> take the two values from your Supabase project and paste them,
+        then reload this page. Step-by-step instructions are in <code>KURULUM.md</code>.</p>
     </div></div>`;
     return;
   }
@@ -1080,35 +1080,35 @@ sb.auth.onAuthStateChange((olay) => {
 baslat();
 
 /* ------------------------------------------------------------- kampanyalar */
-const KAPSAM = [["hepsi","Butun koleksiyon"],["kategori","Secili kategoriler"],
-                ["sanatci","Secili sanatcilar"],["secili","Secili ilanlar"]];
+const KAPSAM = [["hepsi","Entire collection"],["kategori","Selected categories"],
+                ["sanatci","Selected artists"],["secili","Selected listings"]];
 
 function tarihAlan(d) { return d ? String(d).slice(0, 16) : ""; }
 
 async function kampanyaSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "kampanyalar");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "kampanyalar");
   const gvd = document.getElementById("icerik");
   const [{ data, error }, { data: ilan }] = await Promise.all([
     sb.from("kampanyalar").select("*").order("oncelik", { ascending: false }),
     sb.from("ilanlar").select("kat,sanatci,fiyat,fiyat_gizli,durum"),
   ]);
   if (error) return gvd.innerHTML = `<p class="uyari-serit uyari-serit--hata">${esc(error.message)}
-    Kampanya tablosu yoksa <code>supabase/04_kampanya.sql</code> dosyasini calistir.</p>`;
+    If the promotions table is missing, run <code>supabase/04_kampanya.sql</code>.</p>`;
 
   const fiyatli = (ilan || []).filter(x => x.fiyat != null && !x.fiyat_gizli && x.durum !== "satildi").length;
   const sanatcilar = [...new Set((ilan || []).map(x => (x.sanatci || "").trim()).filter(Boolean))].sort();
 
   gvd.innerHTML = `
   <div class="ustbilgi">
-    <div><h1>Kampanyalar</h1>
-      <p>Indirim kurallari. Bir ilana birden fazla kampanya uyarsa indirimler ust uste binmez;
-         oncelik sirasi yuksek olan uygulanir. Fiyati girilmemis ya da satilmis ilanlar indirime girmez.</p></div>
-    <div class="eylemler"><button class="btn" id="yeni-kampanya">Yeni kampanya</button></div>
+    <div><h1>Promotions</h1>
+      <p>Discount rules. If multiple promotions match a listing, discounts do not stack;
+         the highest-priority one applies. Listings without a price or sold are excluded.</p></div>
+    <div class="eylemler"><button class="btn" id="yeni-kampanya">New promotion</button></div>
   </div>
   <div class="ozet">
-    <div><b>${(data || []).filter(k => k.aktif).length}</b><span>Acik kampanya</span></div>
-    <div><b>${fiyatli}</b><span>Indirime girebilecek ilan</span></div>
-    <div><b>${(ilan || []).length - fiyatli}</b><span>Fiyati yok ya da satildi</span></div>
+    <div><b>${(data || []).filter(k => k.aktif).length}</b><span>Open promotions</span></div>
+    <div><b>${fiyatli}</b><span>Listings eligible for discount</span></div>
+    <div><b>${(ilan || []).length - fiyatli}</b><span>No price or sold</span></div>
   </div>
   ${!(data || []).length ? `<div class="kutu bos">Henuz kampanya yok.</div>` :
     data.map(k => kampanyaKart(k, sanatcilar)).join("")}`;
@@ -1134,16 +1134,16 @@ async function kampanyaSayfasi() {
       oncelik: Number(al("oncelik").value) || 0,
       en_dusuk: al("en_dusuk").value.trim() === "" ? null : Number(al("en_dusuk").value),
     };
-    if (!yama.ad) return bildir("Kampanyaya bir ad ver.", true);
-    if (!(yama.deger > 0)) return bildir("Indirim degeri sifirdan buyuk olmali.", true);
+    if (!yama.ad) return bildir("Give the promotion a name.", true);
+    if (!(yama.deger > 0)) return bildir("Discount value must be above zero.", true);
     if (/[–—]/.test(yama.serit_metin + yama.rozet))
       return bildir("Uzun tire kullanilamaz.", true);
     const { error: e2 } = await sb.from("kampanyalar").update(yama).eq("id", id);
-    bildir(e2 ? e2.message : "Kampanya kaydedildi. Sitede gorunmesi icin Yayinla.", !!e2);
+    bildir(e2 ? e2.message : "Promotion saved. Publish to show on the site.", !!e2);
   }));
 
   gvd.querySelectorAll("[data-sil-k]").forEach(b => b.addEventListener("click", async () => {
-    if (!await sor("Kampanya silinsin mi?")) return;
+    if (!await sor("Delete this promotion?")) return;
     await sb.from("kampanyalar").delete().eq("id", Number(b.dataset.silK));
     kampanyaSayfasi();
   }));
@@ -1172,67 +1172,67 @@ function kampanyaKart(k, sanatcilar) {
   <div class="kutu" data-kampanya="${k.id}" style="padding:1.25rem;margin-block-end:1rem">
     <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;margin-block-end:1rem">
       <h3>${esc(k.ad)}</h3>
-      <span class="rozet ${k.aktif ? "rozet--yayinda" : "rozet--taslak"}"><i></i>${k.aktif ? "Acik" : "Kapali"}</span>
+      <span class="rozet ${k.aktif ? "rozet--yayinda" : "rozet--taslak"}"><i></i>${k.aktif ? "On" : "Off"}</span>
     </div>
     <div class="uclu">
-      <div class="alan"><label>Kampanya adi</label><input name="ad" value="${esc(k.ad)}"></div>
-      <div class="alan"><label>Indirim turu</label>
+      <div class="alan"><label>Promotion name</label><input name="ad" value="${esc(k.ad)}"></div>
+      <div class="alan"><label>Discount type</label>
         <select name="tur">
-          <option value="yuzde" ${k.tur === "yuzde" ? "selected" : ""}>Yuzde</option>
-          <option value="tutar" ${k.tur === "tutar" ? "selected" : ""}>Sabit tutar</option>
+          <option value="yuzde" ${k.tur === "yuzde" ? "selected" : ""}>Percent</option>
+          <option value="tutar" ${k.tur === "tutar" ? "selected" : ""}>Fixed amount</option>
         </select></div>
-      <div class="alan"><label>Deger</label>
+      <div class="alan"><label>Value</label>
         <input name="deger" type="number" step="any" value="${k.deger}">
-        <p class="ipucu">Yuzde secildiyse 15 yazarsan yuzde on bes iner.</p></div>
+        <p class="ipucu">If percent is selected, entering 15 takes fifteen percent off.</p></div>
     </div>
     <div class="alan">
-      <label>Kimlere uygulanacak</label>
+      <label>Applies to</label>
       <select name="kapsam" style="max-inline-size:340px">
         ${KAPSAM.map(([v, ad]) => `<option value="${v}" ${k.kapsam === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}
       </select>
       <div data-kapsam-kutu="kategori" ${k.kapsam === "kategori" ? "" : "hidden"} style="margin-block-start:.6rem">
         <div class="etiketler">${kat}</div></div>
       <div data-kapsam-kutu="sanatci" ${k.kapsam === "sanatci" ? "" : "hidden"} style="margin-block-start:.6rem">
-        <div class="etiketler">${snt || "<span class='ipucu'>Kayitli sanatci yok.</span>"}</div></div>
+        <div class="etiketler">${snt || "<span class='ipucu'>No saved artists.</span>"}</div></div>
       <div data-kapsam-kutu="secili" ${k.kapsam === "secili" ? "" : "hidden"} style="margin-block-start:.6rem"></div>
       <div class="alan" style="margin-block-start:.6rem">
-        <label>Elle liste</label>
+        <label>Manual list</label>
         <input name="kapsam_elle" value="${esc(kd.join(', '))}"
-               placeholder="ornek: ilan-59, ilan-114">
-        <p class="ipucu">Yukaridan secim yaparsan bu alan yok sayilir.</p>
+               placeholder="e.g. ilan-59, ilan-114">
+        <p class="ipucu">If you select above, this field is ignored.</p>
       </div>
     </div>
     <div class="uclu">
-      <div class="alan"><label>Baslangic</label>
+      <div class="alan"><label>Start</label>
         <input name="baslangic" type="datetime-local" value="${tarihAlan(k.baslangic)}"></div>
-      <div class="alan"><label>Bitis</label>
+      <div class="alan"><label>End</label>
         <input name="bitis" type="datetime-local" value="${tarihAlan(k.bitis)}">
-        <p class="ipucu">Bos birakirsan suresiz.</p></div>
+        <p class="ipucu">Blank means no end date.</p></div>
       <div class="alan"><label>Oncelik</label>
         <input name="oncelik" type="number" value="${k.oncelik || 0}">
-        <p class="ipucu">Iki kampanya ayni ilana uyarsa buyuk olan kazanir.</p></div>
+        <p class="ipucu">If two promotions match a listing, the larger one wins.</p></div>
     </div>
     <div class="ikili">
-      <div class="alan"><label>Urun uzerindeki etiket</label>
+      <div class="alan"><label>Badge on the product</label>
         <input name="rozet" value="${esc(k.rozet || "")}" placeholder="Summer selection"></div>
-      <div class="alan"><label>Indirim sonrasi en dusuk fiyat</label>
+      <div class="alan"><label>Lowest price after discount</label>
         <input name="en_dusuk" type="number" step="any" value="${k.en_dusuk ?? ""}">
-        <p class="ipucu">Bos birakilabilir.</p></div>
+        <p class="ipucu">May be left blank.</p></div>
     </div>
     <div class="ikili">
       <div class="alan"><label>Sitenin ust seridi</label>
         <input name="serit_metin" value="${esc(k.serit_metin || "")}"
                placeholder="Fifteen percent off the whole collection until the end of the month"></div>
-      <div class="alan"><label>Seritteki kucuk etiket</label>
+      <div class="alan"><label>Small ribbon badge</label>
         <input name="serit_etiket" value="${esc(k.serit_etiket || "")}" placeholder="Summer"></div>
     </div>
     <div class="etiketler" style="margin-block-end:1rem">
-      <label><input type="checkbox" name="aktif" ${k.aktif ? "checked" : ""}>Kampanya acik</label>
+      <label><input type="checkbox" name="aktif" ${k.aktif ? "checked" : ""}>Promotion on</label>
       <label><input type="checkbox" name="serit_aktif" ${k.serit_aktif ? "checked" : ""}>Ust seridi goster</label>
     </div>
     <div class="eylemler">
-      <button class="btn btn--kucuk" data-kaydet-k="${k.id}">Kaydet</button>
-      <button class="btn btn--tehlike btn--kucuk" data-sil-k="${k.id}">Sil</button>
+      <button class="btn btn--kucuk" data-kaydet-k="${k.id}">Save</button>
+      <button class="btn btn--tehlike btn--kucuk" data-sil-k="${k.id}">Delete</button>
     </div>
   </div>`;
 }
@@ -1246,27 +1246,27 @@ function kampanyaKart(k, sanatcilar) {
    =========================================================================== */
 
 const SIPARIS_DURUM = {
-  basladi: "Baslatildi", odendi: "Odendi", iptal: "Iptal",
-  iade: "Iade edildi", basarisiz: "Basarisiz",
+  basladi: "Started", odendi: "Paid", iptal: "Cancelled",
+  iade: "Refunded", basarisiz: "Failed",
 };
 const TALEP_DURUM = {
-  yeni: "Yeni", okundu: "Okundu", yanitlandi: "Yanitlandi",
-  kapandi: "Kapandi", spam: "Spam",
+  yeni: "New", okundu: "Read", yanitlandi: "Replied",
+  kapandi: "Closed", spam: "Spam",
 };
 
 function paraGoster(v, birim) {
   const n = Number(v || 0);
   try {
-    return new Intl.NumberFormat("tr-TR", { style: "currency",
+    return new Intl.NumberFormat("en-US", { style: "currency",
       currency: birim || "USD", maximumFractionDigits: 0 }).format(n);
-  } catch (e) { return n.toLocaleString("tr-TR") + " " + (birim || "USD"); }
+  } catch (e) { return n.toLocaleString("en-US") + " " + (birim || "USD"); }
 }
 
-function zaman(t) { return t ? new Date(t).toLocaleString("tr-TR") : "-"; }
+function zaman(t) { return t ? new Date(t).toLocaleString("en-US") : "-"; }
 
 /* --------------------------------------------------------------- siparisler */
 async function siparisSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "siparisler");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "siparisler");
   const { data, error } = await sb.from("siparisler")
     .select("*").order("olusturuldu", { ascending: false }).limit(200);
   const gvd = document.getElementById("icerik");
@@ -1277,28 +1277,28 @@ async function siparisSayfasi() {
   const toplam = odenen.reduce((t, x) => t + Number(x.tutar || 0) + Number(x.kargo || 0), 0);
 
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Siparisler</h1>
-    <p>Stripe uzerinden gelen satislar. Odeme tamamlaninca eser otomatik olarak
-       satildi isaretlenir ve site yeniden yayinlanir.</p></div></div>
+  <div class="ustbilgi"><div><h1>Orders</h1>
+    <p>Sales via Stripe. When payment completes, the item is automatically
+       marked sold and the site is republished.</p></div></div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem;display:flex;gap:2.5rem;flex-wrap:wrap">
-    <div><div class="ipucu">Odenen siparis</div><strong style="font-size:1.5rem">${odenen.length}</strong></div>
-    <div><div class="ipucu">Toplam tahsilat</div><strong style="font-size:1.5rem">${paraGoster(toplam, odenen[0]?.para_birimi)}</strong></div>
-    <div><div class="ipucu">Tamamlanmamis</div><strong style="font-size:1.5rem">${s.filter(x => x.durum === "basladi").length}</strong></div>
+    <div><div class="ipucu">Paid orders</div><strong style="font-size:1.5rem">${odenen.length}</strong></div>
+    <div><div class="ipucu">Total collected</div><strong style="font-size:1.5rem">${paraGoster(toplam, odenen[0]?.para_birimi)}</strong></div>
+    <div><div class="ipucu">Incomplete</div><strong style="font-size:1.5rem">${s.filter(x => x.durum === "basladi").length}</strong></div>
   </div>
 
   <div class="kutu" style="overflow-x:auto">
-    ${!s.length ? `<div class="bos">Henuz siparis yok. Stripe anahtari girilip odeme acildiginda
-      buraya dusecek.</div>` : `
+    ${!s.length ? `<div class="bos">No orders yet. They will appear here once the Stripe key is entered and payment is on.
+      </div>` : `
     <table><thead><tr>
-      <th>Tarih</th><th>Eser</th><th>Musteri</th><th>Tutar</th><th>Durum</th><th></th>
+      <th>Date</th><th>Item</th><th>Customer</th><th>Amount</th><th>Status</th><th></th>
     </tr></thead><tbody>${s.map(x => `<tr>
       <td style="white-space:nowrap">${zaman(x.olusturuldu)}${x.test_mi ? ` <span class="ipucu">test</span>` : ""}</td>
       <td>${x.ilan_slug ? `<a href="#/ilan/${x.ilan_id}">${esc(x.ilan_baslik || x.ilan_slug)}</a>` : "-"}</td>
       <td>${esc(x.ad || "-")}<br><span class="ipucu">${esc(x.eposta || "")}</span></td>
       <td style="white-space:nowrap">${paraGoster(Number(x.tutar) + Number(x.kargo || 0), x.para_birimi)}</td>
       <td>${esc(SIPARIS_DURUM[x.durum] || x.durum)}</td>
-      <td><button class="btn btn--kucuk" data-siparis="${x.id}">Detay</button></td>
+      <td><button class="btn btn--kucuk" data-siparis="${x.id}">Details</button></td>
     </tr>`).join("")}</tbody></table>`}
   </div>
   <div id="siparisDetay" style="margin-block-start:.75rem"></div>`;
@@ -1308,28 +1308,28 @@ async function siparisSayfasi() {
     const a = x.adres || {};
     document.getElementById("siparisDetay").innerHTML = `
     <div class="kutu" style="padding:1.25rem">
-      <h3>Siparis #${x.id}</h3>
-      <p class="ipucu">Stripe oturumu: ${esc(x.oturum || "-")}</p>
+      <h3>Order #${x.id}</h3>
+      <p class="ipucu">Stripe session: ${esc(x.oturum || "-")}</p>
       <div class="alan" style="max-inline-size:520px">
-        <label>Adres</label>
+        <label>Address</label>
         <div>${[a.line1, a.line2, a.postal_code, a.city, a.state, a.country]
               .filter(Boolean).map(esc).join(", ") || "-"}</div>
       </div>
       <div class="alan" style="max-inline-size:520px">
-        <label>Telefon</label><div>${esc(x.telefon || "-")}</div>
+        <label>Phone</label><div>${esc(x.telefon || "-")}</div>
       </div>
       <div class="alan" style="max-inline-size:320px">
-        <label for="sd-${x.id}">Durum</label>
+        <label for="sd-${x.id}">Status</label>
         <select id="sd-${x.id}">${Object.entries(SIPARIS_DURUM).map(([k, v]) =>
           `<option value="${k}" ${x.durum === k ? "selected" : ""}>${v}</option>`).join("")}</select>
       </div>
-      <button class="btn btn--kucuk" id="sk-${x.id}">Kaydet</button>
+      <button class="btn btn--kucuk" id="sk-${x.id}">Save</button>
     </div>`;
     document.getElementById("sk-" + x.id).addEventListener("click", async () => {
       const yeni = document.getElementById("sd-" + x.id).value;
       const { error } = await sb.from("siparisler")
         .update({ durum: yeni, guncellendi: new Date().toISOString() }).eq("id", x.id);
-      bildir(error ? error.message : "Siparis guncellendi.", !!error);
+      bildir(error ? error.message : "Order updated.", !!error);
       if (!error) siparisSayfasi();
     });
   }));
@@ -1337,7 +1337,7 @@ async function siparisSayfasi() {
 
 /* ------------------------------------------------------------ gelen kutusu */
 async function talepSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "talepler");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "talepler");
   const [{ data, error }, { data: uyeler }] = await Promise.all([
     sb.from("talepler").select("*").order("olusturuldu", { ascending: false }).limit(300),
     sb.from("bulten").select("eposta,olusturuldu,aktif").order("olusturuldu", { ascending: false }).limit(1000),
@@ -1351,23 +1351,23 @@ async function talepSayfasi() {
 
   gvd.innerHTML = `
   <div class="ustbilgi"><div><h1>Gelen kutusu</h1>
-    <p>Sitedeki "Contact Seller" formundan gelen mesajlar.
-       ${yeni ? `<strong>${yeni} yeni</strong>` : "Yeni mesaj yok."}</p></div></div>
+    <p>Messages from the site's "Contact Seller" form.
+       ${yeni ? `<strong>${yeni} new</strong>` : "No new messages."}</p></div></div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
     <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center">
-      <h3 style="margin:0">Bulten kayitlari <span class="ipucu" style="font-weight:400">${bulten.length} e-posta</span></h3>
-      ${bulten.length ? `<button class="btn btn--kucuk" id="bultenKopyala">Adresleri kopyala</button>` : ""}
+      <h3 style="margin:0">Newsletter signups <span class="ipucu" style="font-weight:400">${bulten.length} emails</span></h3>
+      ${bulten.length ? `<button class="btn btn--kucuk" id="bultenKopyala">Copy addresses</button>` : ""}
     </div>
     ${bulten.length ? `<p class="ipucu" style="margin-block-start:.5rem">${bulten.slice(0, 8).map(b => esc(b.eposta)).join(", ")}${bulten.length > 8 ? " ..." : ""}</p>`
-      : `<p class="ipucu" style="margin-block-start:.5rem">Alt bilgideki forma e-posta birakan herkes burada birikecek.</p>`}
+      : `<p class="ipucu" style="margin-block-start:.5rem">Everyone who leaves an email in the footer form collects here.</p>`}
   </div>
 
-  ${!t.length ? `<div class="kutu"><div class="bos">Henuz mesaj yok.</div></div>` : t.map(x => `
+  ${!t.length ? `<div class="kutu"><div class="bos">No messages yet.</div></div>` : t.map(x => `
     <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
       <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
         <div>
-          <h3 style="margin:0">${esc(x.ad || "Isimsiz")}
+          <h3 style="margin:0">${esc(x.ad || "Anonymous")}
             <span class="ipucu" style="font-weight:400">&lt;${esc(x.eposta)}&gt;</span></h3>
           <p class="ipucu" style="margin-block:.25rem 0">${zaman(x.olusturuldu)}
             ${x.ilan_slug ? ` &middot; ${esc(x.ilan_slug)}` : ""}
@@ -1377,9 +1377,9 @@ async function talepSayfasi() {
         <div style="display:flex;gap:.5rem;align-items:flex-start">
           <select id="td-${x.id}" style="inline-size:auto">${Object.entries(TALEP_DURUM).map(([k, v]) =>
             `<option value="${k}" ${x.durum === k ? "selected" : ""}>${v}</option>`).join("")}</select>
-          <button class="btn btn--kucuk" data-talep="${x.id}">Kaydet</button>
+          <button class="btn btn--kucuk" data-talep="${x.id}">Save</button>
           <a class="btn btn--kucuk" href="mailto:${encodeURIComponent(x.eposta)}?subject=${
-            encodeURIComponent("Re: " + (x.ilan_slug || "your message"))}">Yanitla</a>
+            encodeURIComponent("Re: " + (x.ilan_slug || "your message"))}">Reply</a>
         </div>
       </div>
       <p style="margin-block-start:.9rem;white-space:pre-wrap">${esc(x.mesaj)}</p>
@@ -1390,14 +1390,14 @@ async function talepSayfasi() {
     const { error } = await sb.from("talepler")
       .update({ durum: document.getElementById("td-" + id).value,
                 guncellendi: new Date().toISOString() }).eq("id", id);
-    bildir(error ? error.message : "Kaydedildi.", !!error);
+    bildir(error ? error.message : "Saved.", !!error);
   }));
 
   const bk = document.getElementById("bultenKopyala");
   if (bk) bk.addEventListener("click", () => {
     navigator.clipboard.writeText(bulten.map(b => b.eposta).join(", "))
-      .then(() => bildir("Adresler panoya kopyalandi."))
-      .catch(() => bildir("Kopyalanamadi; tarayici izin vermedi.", true));
+      .then(() => bildir("Addresses copied to clipboard."))
+      .catch(() => bildir("Copy failed; the browser refused permission.", true));
   });
 }
 
@@ -1407,7 +1407,7 @@ const ODEME_ANAHTARLARI = ["odeme_acik", "odeme_mod", "odeme_para_birimi",
                            "talep_eposta"];
 
 async function odemeSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "odeme");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "odeme");
   const gvd = document.getElementById("icerik");
 
   const [{ data: ayar, error }, { count: acikAdet }] = await Promise.all([
@@ -1421,74 +1421,74 @@ async function odemeSayfasi() {
   for (const s of ayar || []) a[s.anahtar] = typeof s.deger === "string" ? s.deger : String(s.deger ?? "");
 
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Odeme</h1>
-    <p>Tek tikla satin alma Stripe uzerinden calisir. Gizli anahtar burada degil,
-       Supabase'in gizli ayarlarinda durur; bu ekran onu ne gorur ne saklar.</p></div></div>
+  <div class="ustbilgi"><div><h1>Payment</h1>
+    <p>One-click purchase runs via Stripe. The secret key is not here,
+       it lives in Supabase's secret settings; this screen neither sees nor stores it.</p></div></div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
-    <h3>Baglanti durumu</h3>
-    <p class="ipucu">Asagidaki dugme Supabase'deki odeme fonksiyonuna bir soru sorar
-       ve anahtarin girilip girilmedigini soyler. Anahtarin kendisi hicbir zaman
-       tarayiciya inmez.</p>
+    <h3>Connection status</h3>
+    <p class="ipucu">The button below asks the payment function in Supabase
+       whether a key was entered. The key itself never reaches
+       the browser.</p>
     <div id="odemeDurum" style="margin-block:.75rem 0"></div>
-    <button class="btn btn--kucuk" id="odemeKontrol">Baglantiyi kontrol et</button>
+    <button class="btn btn--kucuk" id="odemeKontrol">Check connection</button>
   </div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
-    <h3>Ayarlar</h3>
+    <h3>Settings</h3>
     <div class="alan" style="max-inline-size:480px">
       <label class="etiketler" style="margin:0">
         <input type="checkbox" id="od-acik" ${a.odeme_acik === "evet" ? "checked" : ""}>
-        Tek tikla satin alma acik</label>
-      <p class="ipucu">Kapaliyken sitede yalnizca "Contact Seller" gorunur.</p>
+        One-click purchase on</label>
+      <p class="ipucu">When off, only "Contact Seller" shows on the site.</p>
     </div>
     <div class="alan" style="max-inline-size:320px">
-      <label for="od-mod">Mod</label>
+      <label for="od-mod">Mode</label>
       <select id="od-mod">
         <option value="test" ${a.odeme_mod === "test" ? "selected" : ""}>Test</option>
-        <option value="canli" ${a.odeme_mod === "canli" ? "selected" : ""}>Canli</option>
+        <option value="canli" ${a.odeme_mod === "canli" ? "selected" : ""}>Live</option>
       </select>
-      <p class="ipucu">Supabase'e hangi anahtari yazdiysan onu sec: sk_test... ya da sk_live...</p>
+      <p class="ipucu">Select whichever key you entered in Supabase: sk_test... or sk_live...</p>
     </div>
     <div class="alan" style="max-inline-size:320px">
-      <label for="od-birim">Para birimi</label>
+      <label for="od-birim">Currency</label>
       <input id="od-birim" value="${esc(a.odeme_para_birimi || "USD")}" maxlength="3">
     </div>
     <div class="alan" style="max-inline-size:320px">
-      <label for="od-kargo">Sabit kargo ucreti</label>
+      <label for="od-kargo">Fixed shipping fee</label>
       <input id="od-kargo" type="number" step="0.01" min="0" value="${esc(a.kargo_ucreti || "0")}">
-      <p class="ipucu">0 ise odeme ekraninda kargo satiri cikmaz.</p>
+      <p class="ipucu">If 0, no shipping line appears at checkout.</p>
     </div>
     <div class="alan" style="max-inline-size:480px">
-      <label for="od-kargometin">Urun sayfasindaki kargo yazisi</label>
+      <label for="od-kargometin">Shipping text on the product page</label>
       <input id="od-kargometin" value="${esc(a.kargo_metni || "")}">
     </div>
     <div class="alan" style="max-inline-size:320px">
-      <label for="od-iade">Iade suresi (gun)</label>
+      <label for="od-iade">Return window (days)</label>
       <input id="od-iade" type="number" min="0" value="${esc(a.odeme_iade_gun || "14")}">
     </div>
     <div class="alan" style="max-inline-size:480px">
-      <label for="od-talep">Talep bildirim e-postasi</label>
+      <label for="od-talep">Request notification email</label>
       <input id="od-talep" type="email" value="${esc(a.talep_eposta || "")}"
              placeholder="ornek@visionaryobjects.com">
-      <p class="ipucu">Gelen kutusuna yeni mesaj dustugunde buraya haber gider.
-         Bos birakirsan mesaj yine panele duser, sadece e-posta gitmez.</p>
+      <p class="ipucu">Notifies here when a new message lands in the inbox.
+         Blank still delivers to the panel, just without email.</p>
     </div>
-    <button class="btn" id="odemeKaydet">Kaydet</button>
+    <button class="btn" id="odemeKaydet">Save</button>
   </div>
 
   <div class="kutu" style="padding:1.25rem">
-    <h3>Hangi eserler tek tikla satilir</h3>
-    <p class="ipucu">Su an <strong>${acikAdet || 0}</strong> eserde tek tikla satis acik.
-       Her eserin kendi sayfasinda "Fiyat ve durum" sekmesinden acilir. Bir eserin
-       satilabilmesi icin fiyati girilmis, gizli olmamali ve durumu Yayinda olmali.</p>
-    <button class="btn btn--kucuk" id="hepsiniAc">Fiyati olan tum eserlerde ac</button>
-    <button class="btn btn--kucuk" id="hepsiniKapat">Hepsinde kapat</button>
+    <h3>Which items sell in one click</h3>
+    <p class="ipucu">Currently <strong>${acikAdet || 0}</strong> items have one-click sale on.
+       Each item enables it from its own page under the "Price & status" tab. To be sellable,
+       an item needs a price, must not be hidden, and its status must be Published.</p>
+    <button class="btn btn--kucuk" id="hepsiniAc">Enable on all priced items</button>
+    <button class="btn btn--kucuk" id="hepsiniKapat">Disable everywhere</button>
   </div>`;
 
   document.getElementById("odemeKontrol").addEventListener("click", async () => {
     const kutu = document.getElementById("odemeDurum");
-    kutu.textContent = "Kontrol ediliyor...";
+    kutu.textContent = "Checking...";
     try {
       const c = await fetch(window.VO.URL + "/functions/v1/odeme-baslat", {
         method: "POST",
@@ -1499,10 +1499,10 @@ async function odemeSayfasi() {
       const d = await c.json().catch(() => ({}));
       if (c.status === 503 && d.hata === "odeme_kapali") {
         kutu.innerHTML = /anahtari henuz/.test(d.mesaj || "")
-          ? `<strong>Stripe anahtari henuz girilmedi.</strong>
-             <span class="ipucu">Supabase &gt; Edge Functions &gt; Secrets ekranina
-             STRIPE_SECRET_KEY ekle.</span>`
-          : `<strong>Anahtar var, odeme panelden kapali.</strong>
+          ? `<strong>Stripe key not entered yet.</strong>
+             <span class="ipucu">Supabase &gt; Edge Functions &gt; Secrets.
+             Add STRIPE_SECRET_KEY.</span>`
+          : `<strong>Key present, payment off in panel.</strong>
              <span class="ipucu">Yukaridaki kutucugu isaretleyip kaydet.</span>`;
       } else if (c.status === 404) {
         kutu.innerHTML = `<strong>Anahtar tamam, fonksiyon calisiyor.</strong>
@@ -1532,7 +1532,7 @@ async function odemeSayfasi() {
         .update({ deger: v, guncellendi: simdi }).eq("anahtar", k);
       if (error) return bildir(error.message, true);
     }
-    bildir("Odeme ayarlari kaydedildi. Sitede gorunmesi icin Yayinla.");
+    bildir("Payment settings saved. Publish to show on the site.");
   });
 
   document.getElementById("hepsiniAc").addEventListener("click", async () => {
@@ -1546,7 +1546,7 @@ async function odemeSayfasi() {
   document.getElementById("hepsiniKapat").addEventListener("click", async () => {
     const { error } = await sb.from("ilanlar")
       .update({ satin_alinabilir: false }).eq("satin_alinabilir", true);
-    bildir(error ? error.message : "Tek tikla satis her yerde kapatildi.", !!error);
+    bildir(error ? error.message : "One-click sale closed everywhere.", !!error);
     if (!error) odemeSayfasi();
   });
 }
@@ -1557,7 +1557,7 @@ async function odemeSayfasi() {
    =========================================================================== */
 
 async function analitikSayfasi() {
-  kabuk(`<div class="yukleniyor">Yukleniyor</div>`, "analitik");
+  kabuk(`<div class="yukleniyor">Loading</div>`, "analitik");
   const gvd = document.getElementById("icerik");
 
   const otuzGun = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
@@ -1591,7 +1591,7 @@ async function analitikSayfasi() {
   const gunler = [];
   for (let i = 13; i >= 0; i--) {
     const bas = new Date(simdi - i * gunMs);
-    const ad = bas.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+    const ad = bas.toLocaleDateString("en-US", { day: "numeric", month: "short" });
     const n = v.filter(x => {
       const t = simdi - new Date(x.olusturuldu).getTime();
       return t >= (i) * gunMs - (simdi % gunMs) && t < (i + 1) * gunMs - (simdi % gunMs);
@@ -1600,25 +1600,25 @@ async function analitikSayfasi() {
   }
   const enCok = Math.max(1, ...gunler.map(g => g[1]));
 
-  const YOL_ADI = y => y === "#/" ? "Ana sayfa"
-    : y.indexOf("#/item/") === 0 ? "Eser: " + y.slice(7)
+  const YOL_ADI = y => y === "#/" ? "Home"
+    : y.indexOf("#/item/") === 0 ? "Item: " + y.slice(7)
     : y.indexOf("#/browse") === 0 ? "Vitrin"
-    : y.indexOf("#/info/") === 0 ? "Sayfa: " + y.slice(7)
+    : y.indexOf("#/info/") === 0 ? "Page: " + y.slice(7)
     : y;
 
   gvd.innerHTML = `
-  <div class="ustbilgi"><div><h1>Analitik</h1>
-    <p>Cerezsiz, birinci taraf sayac: yalnizca sayfa yolu ve geldigi site tutulur.
-       IP, cerez ve kisisel veri yok. Panele girisli olanlar sayilmaz.</p></div></div>
+  <div class="ustbilgi"><div><h1>Analytics</h1>
+    <p>Cookieless first-party counter: only page path and referrer are stored.
+       No IP, cookies or personal data. Logged-in panel users are not counted.</p></div></div>
 
   <div class="ozet">
-    <div><b>${bugun}</b><span>Bugun</span></div>
-    <div><b>${hafta}</b><span>Son 7 gun</span></div>
-    <div><b>${v.length}</b><span>Son 30 gun</span></div>
+    <div><b>${bugun}</b><span>Today</span></div>
+    <div><b>${hafta}</b><span>Last 7 days</span></div>
+    <div><b>${v.length}</b><span>Last 30 days</span></div>
   </div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
-    <h3 style="margin-block-end:.75rem">Son 14 gun</h3>
+    <h3 style="margin-block-end:.75rem">Last 14 days</h3>
     ${gunler.map(([ad, n]) => `
       <div style="display:grid;grid-template-columns:5.5rem 1fr 3rem;gap:.6rem;align-items:center;margin-block-end:.35rem">
         <span class="ipucu">${ad}</span>
@@ -1630,16 +1630,16 @@ async function analitikSayfasi() {
 
   <div class="ikili">
     <div class="kutu" style="padding:1.25rem">
-      <h3 style="margin-block-end:.75rem">En cok bakilan eserler</h3>
-      ${!eserler.length ? `<div class="bos" style="padding:1.5rem">Henuz veri yok.</div>`
+      <h3 style="margin-block-end:.75rem">Most viewed items</h3>
+      ${!eserler.length ? `<div class="bos" style="padding:1.5rem">No data yet.</div>`
         : eserler.map(([slug, n]) => `
         <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
           <a href="https://visionaryobjects.com/#/item/${esc(slug)}" target="_blank" rel="noopener">${esc(slug)}</a>
           <span class="sayisal">${n}</span></div>`).join("")}
     </div>
     <div class="kutu" style="padding:1.25rem">
-      <h3 style="margin-block-end:.75rem">Nereden geliyorlar</h3>
-      ${!kaynaklar.length ? `<div class="bos" style="padding:1.5rem">Dogrudan girisler disinda kaynak yok.</div>`
+      <h3 style="margin-block-end:.75rem">Where they come from</h3>
+      ${!kaynaklar.length ? `<div class="bos" style="padding:1.5rem">No sources besides direct visits.</div>`
         : kaynaklar.map(([k, n]) => `
         <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
           <span>${esc(k)}</span><span class="sayisal">${n}</span></div>`).join("")}
@@ -1647,22 +1647,22 @@ async function analitikSayfasi() {
   </div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-start:.75rem">
-    <h3 style="margin-block-end:.75rem">En cok gezilen sayfalar</h3>
+    <h3 style="margin-block-end:.75rem">Most visited pages</h3>
     ${sayfalar.map(([y, n]) => `
       <div style="display:flex;justify-content:space-between;gap:1rem;padding-block:.35rem;border-block-end:1px solid var(--pnl-line)">
         <span>${esc(YOL_ADI(y))}</span><span class="sayisal">${n}</span></div>`).join("")}
   </div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-start:.75rem">
-    <h3>Temizlik</h3>
-    <p class="ipucu" style="margin-block-end:.75rem">90 gunden eski kayitlari silmek tabloyu kucuk tutar; raporlar son 30 gune bakar.</p>
-    <button class="btn btn--kucuk" id="analitikTemizle">90 gunden eskiyi sil</button>
+    <h3>Cleanup</h3>
+    <p class="ipucu" style="margin-block-end:.75rem">Deleting records older than 90 days keeps the table small; reports look at the last 30 days.</p>
+    <button class="btn btn--kucuk" id="analitikTemizle">Delete older than 90 days</button>
   </div>`;
 
   document.getElementById("analitikTemizle").addEventListener("click", async () => {
     const sinir = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
     const { error } = await sb.from("ziyaretler").delete().lt("olusturuldu", sinir);
-    bildir(error ? error.message : "Eski kayitlar silindi.", !!error);
+    bildir(error ? error.message : "Old records deleted.", !!error);
   });
 }
 

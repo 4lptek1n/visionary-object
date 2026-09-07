@@ -126,7 +126,7 @@
       signInWithPassword: function (g) {
         return ozet(String((g && g.password) || "")).then(function (h) {
           if (h !== SIFRE_OZETI) {
-            return { error: { message: "Sifre dogru degil." } };
+            return { error: { message: "Incorrect password." } };
           }
           try { sessionStorage.setItem(ANAHTAR, "1"); } catch (e) {}
           return { error: null };
@@ -138,7 +138,7 @@
       },
       resetPasswordForEmail: function () {
         return Promise.resolve({ error: { message:
-          "Onizleme sifresi sabittir. Supabase baglaninca kendi sifreni belirleyeceksin." } });
+          "Preview password is fixed. Once Supabase is connected you will set your own password." } });
       },
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
