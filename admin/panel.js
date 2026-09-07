@@ -12,6 +12,7 @@ const kok = document.getElementById("kok");
 const bildirimKutu = document.getElementById("bildirim");
 
 let oturum = null, profil = null;
+const seciliKume = new Set();
 const durumState = { ilanlar: [], sayfa: 1, adet: 25, arama: "", suzgec: "hepsi", kat: "hepsi", siralama: "no-desc" };
 
 /* ------------------------------------------------------------------ araclar */
@@ -156,6 +157,7 @@ const MENU = [
   ["kampanyalar", "Promotions",   "%"],
   ["siparisler",  "Orders",       "▦"],
   ["talepler",    "Inbox",        "✉"],
+  ["musteriler",  "Customers",    "◉"],
   ["odeme",       "Payment",      "▣"],
   ["sayfalar",    "Site texts",   "¶"],
   ["sanatcilar",  "Artists",   "✎"],
@@ -318,20 +320,31 @@ async function ilanlarSayfasi() {
     </div>
   </div>
 
+  <div class="kutu" id="toplu-bar" hidden style="padding:.6rem 1rem;margin-block-end:1rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+    <span><b id="toplu-sayi">0</b> selected</span>
+    <select id="toplu-durum" style="max-inline-size:200px">${DURUMLAR.map(([v, ad]) =>
+      `<option value="${v}">${esc(ad)}</option>`).join("")}</select>
+    <button class="btn btn--line btn--kucuk" id="toplu-uygula">Apply status</button>
+    <button class="btn btn--tehlike btn--kucuk" id="toplu-sil">Delete selected</button>
+    <button class="btn btn--line btn--kucuk" id="toplu-temizle">Clear</button>
+  </div>
+
   <div class="kutu" style="overflow-x:auto">
-    ${!data.length ? `<div class="bos">Bu suzgece uyan ilan yok.</div>` : `
+    ${!data.length ? `<div class="bos">No listings match this filter.</div>` : `
     <table>
       <thead><tr>
+        <th style="inline-size:34px"><input type="checkbox" id="toplu-tumu" aria-label="Select all"></th>
         <th style="inline-size:70px">Image</th><th>Title</th><th>Artist</th>
         <th>Size</th><th>Price</th><th>Status</th><th style="inline-size:90px"></th>
       </tr></thead>
       <tbody>${data.map(r => {
         const kapak = (r.kareler || []).slice().sort((a, b) => a.sira - b.sira)[0];
         return `<tr data-id="${r.id}" style="cursor:pointer">
+          <td><input type="checkbox" data-sec="${r.id}" ${seciliKume.has(r.id) ? "checked" : ""} aria-label="Select"></td>
           <td><img class="satir-kapak" loading="lazy" alt=""
                src="${kapak ? esc(gorselUrl(kapak.yol, 112)) : ""}"></td>
           <td>
-            <b style="font-weight:500">${esc(r.baslik || "Adsiz ilan")}</b>
+            <b style="font-weight:500">${esc(r.baslik || "Untitled listing")}</b>
             <div style="font-size:.75rem;color:var(--pnl-ink-3)">${esc(r.slug)} · VO-${r.no}</div>
           </td>
           <td>${esc(r.sanatci || "-")}</td>
@@ -351,7 +364,53 @@ async function ilanlarSayfasi() {
   </div>`;
 
   gvd.querySelectorAll("tbody tr").forEach(tr =>
-    tr.addEventListener("click", () => { location.hash = "#/ilan/" + tr.dataset.id; }));
+    tr.addEventListener("click", e => {
+      if (e.target.closest("input,button,a")) return;
+      location.hash = "#/ilan/" + tr.dataset.id;
+    }));
+  const topluYenile = () => {
+    const n = seciliKume.size;
+    document.getElementById("toplu-bar").hidden = n === 0;
+    document.getElementById("toplu-sayi").textContent = n;
+    const tumu = document.getElementById("toplu-tumu");
+    if (tumu) {
+      const kutular = [...gvd.querySelectorAll("[data-sec]")];
+      tumu.checked = kutular.length > 0 && kutular.every(k => k.checked);
+    }
+  };
+  gvd.querySelectorAll("[data-sec]").forEach(k => k.addEventListener("change", () => {
+    const id = Number(k.dataset.sec);
+    if (k.checked) seciliKume.add(id); else seciliKume.delete(id);
+    topluYenile();
+  }));
+  document.getElementById("toplu-tumu").addEventListener("change", e => {
+    gvd.querySelectorAll("[data-sec]").forEach(k => {
+      k.checked = e.target.checked;
+      const id = Number(k.dataset.sec);
+      if (k.checked) seciliKume.add(id); else seciliKume.delete(id);
+    });
+    topluYenile();
+  });
+  document.getElementById("toplu-temizle").addEventListener("click", () => {
+    seciliKume.clear(); ilanlarSayfasi();
+  });
+  document.getElementById("toplu-uygula").addEventListener("click", async () => {
+    if (!YETKI()) return bildir("You don't have permission.", true);
+    const durum = document.getElementById("toplu-durum").value;
+    const ids = [...seciliKume];
+    const { error } = await sb.from("ilanlar").update({ durum }).in("id", ids);
+    if (error) return bildir(error.message, true);
+    bildir(ids.length + " listings set to " + durum + ".");
+    seciliKume.clear(); ilanlarSayfasi();
+  });
+  document.getElementById("toplu-sil").addEventListener("click", async () => {
+    if (!YETKI()) return bildir("You don't have permission.", true);
+    if (!await sor(seciliKume.size + " listings will be deleted. Continue?", "Delete")) return;
+    const { error } = await sb.from("ilanlar").delete().in("id", [...seciliKume]);
+    if (error) return bildir(error.message, true);
+    bildir("Deleted."); seciliKume.clear(); ilanlarSayfasi();
+  });
+  topluYenile();
   document.getElementById("f-durum").addEventListener("change", e => {
     durumState.suzgec = e.target.value; durumState.sayfa = 1; ilanlarSayfasi(); });
   document.getElementById("f-kat").addEventListener("change", e => {
@@ -364,7 +423,7 @@ async function ilanlarSayfasi() {
 }
 
 async function yeniIlan() {
-  if (!YETKI()) return bildir("Yetkin yok.", true);
+  if (!YETKI()) return bildir("You don't have permission.", true);
   const { data: enB } = await sb.from("ilanlar").select("no").order("no", { ascending: false }).limit(1);
   const no = (enB?.[0]?.no || 0) + 1;
   const { data, error } = await sb.from("ilanlar")
@@ -423,7 +482,7 @@ function ilanCiz(il, kareler) {
   gvd.innerHTML = `
   <div class="ustbilgi">
     <div>
-      <h1>${esc(il.baslik || "Adsiz ilan")}</h1>
+      <h1>${esc(il.baslik || "Untitled listing")}</h1>
       <p>${esc(il.slug)} · VO-${il.no} · son degisiklik ${new Date(il.guncellendi).toLocaleString("en-US")}</p>
     </div>
     <div class="eylemler">
@@ -510,10 +569,16 @@ function ilanCiz(il, kareler) {
       ${alanKutu("olcu_d", "Depth (in)", il.olcu_d, "number")}
     </div>
     ${alanKutu("olcu_nesi", "Measurement basis", il.olcu_nesi, "text", "Example: outside of frame, sheet, canvas")}
+    <div id="envanter-bolum" hidden>
+      <div class="ikili">
+        ${alanKutu("stok", "Stock quantity", il.stok ?? 1, "number", "0 = out of stock. One-of-a-kind pieces are usually 1.")}
+        ${alanKutu("sku", "SKU", il.sku || "", "text", "Your own stock code. Optional.")}
+      </div>
+    </div>
     <div class="etiketler" style="margin-block-start:.5rem">
       <label><input type="checkbox" id="a-fiyat_gizli" ${il.fiyat_gizli ? "checked" : ""}>Hide price on site</label>
       <label><input type="checkbox" id="a-pazarlik" ${il.pazarlik ? "checked" : ""}>Open to offers</label>
-      <label><input type="checkbox" id="a-satin_alinabilir" ${il.satin_alinabilir ? "checked" : ""}>Tek tikla satin alinabilir</label>
+      <label><input type="checkbox" id="a-satin_alinabilir" ${il.satin_alinabilir ? "checked" : ""}>Available for one-click purchase</label>
       <label><input type="checkbox" id="a-one_cikan" ${il.one_cikan ? "checked" : ""}>Feature on homepage</label>
     </div>
   </section>
@@ -538,7 +603,7 @@ function ilanCiz(il, kareler) {
     ${alanKutu("seo_baslik", "Search title", il.seo_baslik, "text", "Blank uses the listing title. Keep under 60 characters.")}
     ${alanKutu("seo_aciklama", "Search description", il.seo_aciklama, "textarea", "Keep under 155 characters.")}
     <div class="kutu" style="padding:1rem;max-inline-size:640px">
-      <p style="font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--pnl-ink-3)">Google onizleme</p>
+      <p style="font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--pnl-ink-3)">Google preview</p>
       <p id="onizleme-baslik" style="color:#1a0dab;font-size:1.15rem;margin-block-start:.4rem"></p>
       <p style="color:var(--pnl-ok);font-size:.8125rem">${esc(window.VO.SITE)}/item/${esc(il.slug)}.html</p>
       <p id="onizleme-aciklama" style="color:var(--pnl-ink-2);font-size:.875rem;margin-block-start:.25rem"></p>
@@ -564,6 +629,19 @@ function ilanCiz(il, kareler) {
 
   kareleriCiz(il, kareler);
   yuklemeKur(il, kareler);
+  varyasyonKur(il, kareler);
+  sb.from("ilanlar").select("stok,sku").eq("id", il.id).limit(1).then(({ error, data }) => {
+    if (error || !data) return;
+    const b = document.getElementById("envanter-bolum");
+    if (b) b.hidden = false;
+    if (data[0]) {
+      il.stok = data[0].stok; il.sku = data[0].sku;
+      const s = document.getElementById("a-stok");
+      if (s && data[0].stok != null) s.value = data[0].stok;
+      const k = document.getElementById("a-sku");
+      if (k && data[0].sku) k.value = data[0].sku;
+    }
+  });
 
   document.getElementById("kaydet").addEventListener("click", () => ilanKaydet(il, kareler));
   document.getElementById("ilan-sil").addEventListener("click", async () => {
@@ -588,6 +666,7 @@ function kareleriCiz(il, kareler) {
       <span class="tut" aria-hidden="true">drag</span>
       <img loading="lazy" alt="${esc(k.alt_metin || "")}" src="${esc(gorselUrl(k.yol, 400))}">
       <div class="alt-bar">
+        <button type="button" data-kirp="${k.id}" title="Crop a new image from this photo" style="flex:0 0 auto;border:1px solid var(--pnl-line);border-radius:2px;background:var(--pnl-paper,#fff);font-size:14px;line-height:1;padding:4px 6px;cursor:pointer">&#9986;</button>
         <select data-rol="${k.id}" aria-label="Image role">
           ${ROLLER.map(([v, ad]) => `<option value="${v}" ${k.rol === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}
         </select>
@@ -740,6 +819,12 @@ async function ilanKaydet(il) {
     seo_aciklama: al("seo_aciklama").value.trim(),
     facet,
   };
+  const envB = document.getElementById("envanter-bolum");
+  if (envB && !envB.hidden) {
+    const sv = al("stok").value.trim();
+    yeni.stok = sv === "" ? 1 : Number(sv);
+    yeni.sku = al("sku").value.trim();
+  }
 
   const tire = Object.values(yeni).filter(v => typeof v === "string" && /[–—]/.test(v));
   if (tire.length) return bildir("Long dashes found. Site rule: use short hyphens only.", true);
@@ -747,7 +832,7 @@ async function ilanKaydet(il) {
   if (!/^[a-z0-9-]+$/.test(yeni.slug)) return bildir("Address may only contain lowercase letters, digits and hyphens.", true);
 
   const btn = document.getElementById("kaydet");
-  btn.disabled = true; btn.textContent = "Kaydediliyor";
+  btn.disabled = true; btn.textContent = "Saving…";
   const { error } = await sb.from("ilanlar").update(yeni).eq("id", il.id);
   btn.disabled = false; btn.textContent = "Save";
   if (error) return bildir(error.message, true);
@@ -957,7 +1042,7 @@ async function kullanicilarSayfasi() {
       <td><input value="${esc(p.ad || "")}" data-p="ad" data-id="${p.id}"></td>
       <td><select data-p="rol" data-id="${p.id}" ${p.id === oturum.user.id ? "disabled" : ""}>
         ${[["sahip","Owner - everything and user management"],
-           ["yonetici","Yonetici - butun icerik"],
+           ["yonetici","Manager - all content"],
            ["okur","Reader - view only"]].map(([v, ad]) =>
           `<option value="${v}" ${p.rol === v ? "selected" : ""}>${esc(ad)}</option>`).join("")}
       </select></td>
@@ -969,7 +1054,7 @@ async function kullanicilarSayfasi() {
 
   gvd.querySelectorAll("[data-p]").forEach(el => el.addEventListener("change", async () => {
     const { error } = await sb.from("profiller").update({ [el.dataset.p]: el.value }).eq("id", el.dataset.id);
-    bildir(error ? error.message : "Guncellendi.", !!error);
+    bildir(error ? error.message : "Updated.", !!error);
   }));
   gvd.querySelectorAll("[data-sil-p]").forEach(b => b.addEventListener("click", async () => {
     if (!await sor("Remove this user's panel access?", "Remove")) return;
@@ -1027,6 +1112,7 @@ function yonlendir() {
   if (h.startsWith("#/kampanyalar")) return kampanyaSayfasi();
   if (h.startsWith("#/siparisler")) return siparisSayfasi();
   if (h.startsWith("#/talepler")) return talepSayfasi();
+  if (h.startsWith("#/musteriler")) return musterilerSayfasi();
   if (h.startsWith("#/odeme")) return odemeSayfasi();
   if (h.startsWith("#/analitik")) return analitikSayfasi();
   if (h.startsWith("#/sayfalar")) return sayfalarSayfasi();
@@ -1066,7 +1152,7 @@ async function baslat() {
   const { data: p, error } = await sb.from("profiller").select("*").eq("id", oturum.user.id).single();
   if (error || !p) {
     await sb.auth.signOut();
-    return girisEkrani("Bu hesabin panele erisimi yok. Yoneticiden yetki iste.");
+    return girisEkrani("This account has no panel access. Ask an admin for permission.");
   }
   profil = p;
   sb.from("profiller").update({ son_giris: new Date().toISOString() }).eq("id", p.id).then(() => {});
@@ -1401,6 +1487,81 @@ async function talepSayfasi() {
   });
 }
 
+/* ------------------------------------------------------------ musteriler */
+async function musterilerSayfasi() {
+  kabuk(`<div class="yukleniyor">Loading</div>`, "musteriler");
+  const gvd = document.getElementById("icerik");
+  const [s, t, b] = await Promise.all([
+    sb.from("siparisler").select("ad,eposta,telefon,tutar,kargo,para_birimi,durum,olusturuldu").limit(1000),
+    sb.from("talepler").select("ad,eposta,telefon,durum,olusturuldu").limit(1000),
+    sb.from("bulten").select("eposta,olusturuldu,aktif").limit(2000),
+  ]);
+  const err = s.error || t.error || b.error;
+  if (err) { gvd.innerHTML = hataKutusu(err); return; }
+  const kisi = {};
+  const al = (eposta, telefon, ad) => {
+    const anahtar = (eposta || "").trim().toLowerCase()
+      || (telefon || "").trim() || (ad || "").trim() || "unknown";
+    if (!kisi[anahtar]) kisi[anahtar] = {
+      eposta: (eposta || "").trim(), telefon: (telefon || "").trim(),
+      ad: (ad || "").trim(), siparis: 0, harcama: 0, birim: "USD",
+      mesaj: 0, bulten: false, son: null,
+    };
+    return kisi[anahtar];
+  };
+  (s.data || []).forEach(x => {
+    const k = al(x.eposta, x.telefon, x.ad);
+    if (!k.ad && x.ad) k.ad = x.ad;
+    if (!k.telefon && x.telefon) k.telefon = x.telefon;
+    if (x.durum === "odendi") {
+      k.siparis++;
+      k.harcama += Number(x.tutar || 0) + Number(x.kargo || 0);
+      k.birim = x.para_birimi || k.birim;
+    }
+    if (!k.son || x.olusturuldu > k.son) k.son = x.olusturuldu;
+  });
+  (t.data || []).forEach(x => {
+    const k = al(x.eposta, x.telefon, x.ad);
+    if (!k.ad && x.ad) k.ad = x.ad;
+    k.mesaj++;
+    if (!k.son || x.olusturuldu > k.son) k.son = x.olusturuldu;
+  });
+  (b.data || []).forEach(x => {
+    if (!(x.eposta || "").trim()) return;
+    const k = al(x.eposta, "", "");
+    if (x.aktif) k.bulten = true;
+    if (!k.son || x.olusturuldu > k.son) k.son = x.olusturuldu;
+  });
+  const liste = Object.values(kisi).sort((a, z) => (z.son || "") < (a.son || "") ? -1 : 1);
+  gvd.innerHTML = `
+  <div class="ustbilgi"><div><h1>Customers</h1>
+    <p>${liste.length} people from orders, messages and newsletter.</p></div>
+    <div class="eylemler"><input type="search" id="mus-ara" placeholder="Search name or email"
+      style="max-inline-size:260px;padding:8px 10px;border:1px solid var(--pnl-line-ui);border-radius:2px"></div>
+  </div>
+  <div class="kutu" style="overflow-x:auto"><table><thead><tr>
+    <th>Name</th><th>Email</th><th>Phone</th><th>Orders</th><th>Spent</th>
+    <th>Messages</th><th>Newsletter</th><th>Last activity</th>
+  </tr></thead><tbody id="mus-satir"></tbody></table></div>`;
+  const ciz = (q) => {
+    const f = (q || "").trim().toLowerCase();
+    document.getElementById("mus-satir").innerHTML = liste
+      .filter(k => !f || ((k.ad || "") + " " + (k.eposta || "")).toLowerCase().includes(f))
+      .map(k => `<tr>
+        <td>${esc(k.ad || "-")}</td>
+        <td>${k.eposta ? `<a href="mailto:${encodeURIComponent(k.eposta)}">${esc(k.eposta)}</a>` : "-"}</td>
+        <td>${esc(k.telefon || "-")}</td>
+        <td class="sayisal">${k.siparis}</td>
+        <td class="sayisal">${k.siparis ? esc(para(k.harcama, k.birim)) : "-"}</td>
+        <td class="sayisal">${k.mesaj}</td>
+        <td>${k.bulten ? "Yes" : "-"}</td>
+        <td style="white-space:nowrap">${zaman(k.son)}</td>
+      </tr>`).join("");
+  };
+  document.getElementById("mus-ara").addEventListener("input", e => ciz(e.target.value));
+  ciz("");
+}
+
 /* ---------------------------------------------------------------- odeme */
 const ODEME_ANAHTARLARI = ["odeme_acik", "odeme_mod", "odeme_para_birimi",
                            "kargo_ucreti", "kargo_metni", "odeme_iade_gun",
@@ -1477,6 +1638,46 @@ async function odemeSayfasi() {
     <button class="btn" id="odemeKaydet">Save</button>
   </div>
 
+  <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
+    <h3>Discount codes</h3>
+    <p class="ipucu">Codes buyers enter at checkout. Percent takes off the item total; amount takes off a fixed sum.</p>
+    <div id="kupon-liste"></div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-block:.6rem">
+      <input id="kupon-kod" placeholder="CODE" style="max-inline-size:140px">
+      <select id="kupon-tur" style="max-inline-size:130px">
+        <option value="yuzde">Percent</option>
+        <option value="tutar">Amount</option>
+      </select>
+      <input id="kupon-deger" type="number" step="any" min="0" placeholder="10" style="max-inline-size:110px">
+      <label style="display:flex;gap:6px;align-items:center;font-size:.875rem">
+        <input type="checkbox" id="kupon-aktif" checked> On</label>
+      <button class="btn btn--line btn--kucuk" id="kupon-ekle">Add code</button>
+    </div>
+    <button class="btn btn--kucuk" id="kupon-kaydet">Save codes</button>
+  </div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
+    <h3>Shipping zones</h3>
+    <p class="ipucu">Checkout offers these zones with their fees. First zone is the default.</p>
+    <div id="bolge-liste"></div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-block:.6rem">
+      <input id="bolge-ad" placeholder="Zone name" style="max-inline-size:200px">
+      <input id="bolge-ucret" type="number" step="0.01" min="0" placeholder="0" style="max-inline-size:110px">
+      <button class="btn btn--line btn--kucuk" id="bolge-ekle">Add zone</button>
+    </div>
+    <button class="btn btn--kucuk" id="bolge-kaydet">Save zones</button>
+  </div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
+    <h3>Tax</h3>
+    <div class="alan" style="max-inline-size:200px">
+      <label for="od-vergi">Sales tax (%)</label>
+      <input id="od-vergi" type="number" step="0.01" min="0" value="${esc(a.vergi_oran ?? "0")}">
+      <p class="ipucu">0 = off.</p>
+    </div>
+    <button class="btn btn--kucuk" id="vergi-kaydet">Save tax</button>
+  </div>
+
   <div class="kutu" style="padding:1.25rem">
     <h3>Which items sell in one click</h3>
     <p class="ipucu">Currently <strong>${acikAdet || 0}</strong> items have one-click sale on.
@@ -1503,15 +1704,15 @@ async function odemeSayfasi() {
              <span class="ipucu">Supabase &gt; Edge Functions &gt; Secrets.
              Add STRIPE_SECRET_KEY.</span>`
           : `<strong>Key present, payment off in panel.</strong>
-             <span class="ipucu">Yukaridaki kutucugu isaretleyip kaydet.</span>`;
+             <span class="ipucu">Check the box above and save.</span>`;
       } else if (c.status === 404) {
-        kutu.innerHTML = `<strong>Anahtar tamam, fonksiyon calisiyor.</strong>
-          <span class="ipucu">Deneme eseri bulunamadi, beklenen cevap bu.</span>`;
+        kutu.innerHTML = `<strong>Key OK, function running.</strong>
+          <span class="ipucu">Test item not found; this response is expected.</span>`;
       } else {
-        kutu.innerHTML = `<strong>Cevap:</strong> ${c.status} ${esc(JSON.stringify(d))}`;
+        kutu.innerHTML = `<strong>Response:</strong> ${c.status} ${esc(JSON.stringify(d))}`;
       }
     } catch (e) {
-      kutu.innerHTML = `<strong>Fonksiyona ulasilamadi.</strong>
+      kutu.innerHTML = `<strong>Function unreachable.</strong>
         <span class="ipucu">${esc(String(e))}</span>`;
     }
   });
@@ -1549,6 +1750,97 @@ async function odemeSayfasi() {
     bildir(error ? error.message : "One-click sale closed everywhere.", !!error);
     if (!error) odemeSayfasi();
   });
+
+  kuponBolgeVergiKur();
+}
+
+async function ayarGet(anahtar, varsayilan) {
+  const r = await sb.from("ayarlar").select("deger").eq("anahtar", anahtar).limit(1).single();
+  if (r.error || r.data == null) return varsayilan;
+  return r.data.deger;
+}
+async function ayarKoy(anahtar, deger) {
+  const simdi = new Date().toISOString();
+  const u = await sb.from("ayarlar").update({ deger, guncellendi: simdi }).eq("anahtar", anahtar);
+  if (u.error) return u;
+  const k = await sb.from("ayarlar").select("anahtar").eq("anahtar", anahtar).limit(1);
+  if (!k.error && !(k.data || []).length) {
+    return await sb.from("ayarlar").insert({ anahtar, deger });
+  }
+  return u;
+}
+function diziOku(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    try { const j = JSON.parse(v); return Array.isArray(j) ? j : []; }
+    catch (e) { return []; }
+  }
+  return [];
+}
+async function kuponBolgeVergiKur() {
+  const kuponlar = diziOku(await ayarGet("kuponlar", []));
+  const bolgeler = diziOku(await ayarGet("kargo_bolgeler", []));
+  const cizKupon = () => {
+    document.getElementById("kupon-liste").innerHTML = kuponlar.length ? kuponlar.map((k, i) => `
+      <div style="display:flex;gap:.5rem;align-items:center;margin-block-end:.4rem;flex-wrap:wrap">
+        <b>${esc(k.kod || "")}</b>
+        <span class="ipucu">${k.tur === "tutar" ? "Amount" : "Percent"}: ${esc(String(k.deger ?? ""))}</span>
+        <span class="ipucu">${k.aktif ? "On" : "Off"}</span>
+        <button class="btn btn--line btn--kucuk" data-kupon-sil="${i}">Remove</button>
+      </div>`).join("")
+      : `<p class="ipucu">No codes yet.</p>`;
+    document.querySelectorAll("[data-kupon-sil]").forEach(b => b.addEventListener("click", () => {
+      kuponlar.splice(Number(b.dataset.kuponSil), 1); cizKupon();
+    }));
+  };
+  const cizBolge = () => {
+    document.getElementById("bolge-liste").innerHTML = bolgeler.length ? bolgeler.map((z, i) => `
+      <div style="display:flex;gap:.5rem;align-items:center;margin-block-end:.4rem;flex-wrap:wrap">
+        <b>${esc(z.ad || "")}</b>
+        <span class="ipucu">${esc(String(z.ucret ?? "0"))} USD</span>
+        <button class="btn btn--line btn--kucuk" data-bolge-sil="${i}">Remove</button>
+      </div>`).join("")
+      : `<p class="ipucu">No zones yet. Checkout falls back to the fixed fee above.</p>`;
+    document.querySelectorAll("[data-bolge-sil]").forEach(b => b.addEventListener("click", () => {
+      bolgeler.splice(Number(b.dataset.bolgeSil), 1); cizBolge();
+    }));
+  };
+  cizKupon(); cizBolge();
+  document.getElementById("kupon-ekle").addEventListener("click", () => {
+    const kod = document.getElementById("kupon-kod").value.trim().toUpperCase();
+    const deger = Number(document.getElementById("kupon-deger").value);
+    if (!kod || !(deger > 0)) return bildir("Code and a value above zero are required.", true);
+    if (kuponlar.some(k => (k.kod || "").toUpperCase() === kod))
+      return bildir("This code already exists.", true);
+    kuponlar.push({ kod, tur: document.getElementById("kupon-tur").value,
+                    deger, aktif: document.getElementById("kupon-aktif").checked });
+    document.getElementById("kupon-kod").value = "";
+    document.getElementById("kupon-deger").value = "";
+    cizKupon();
+  });
+  document.getElementById("kupon-kaydet").addEventListener("click", async () => {
+    const { error } = await ayarKoy("kuponlar", kuponlar);
+    bildir(error ? error.message : "Codes saved.", !!error);
+  });
+  document.getElementById("bolge-ekle").addEventListener("click", () => {
+    const ad = document.getElementById("bolge-ad").value.trim();
+    const ucret = document.getElementById("bolge-ucret").value.trim() || "0";
+    if (!ad) return bildir("Zone name is required.", true);
+    bolgeler.push({ ad, ucret });
+    document.getElementById("bolge-ad").value = "";
+    document.getElementById("bolge-ucret").value = "";
+    cizBolge();
+  });
+  document.getElementById("bolge-kaydet").addEventListener("click", async () => {
+    const { error } = await ayarKoy("kargo_bolgeler", bolgeler);
+    bildir(error ? error.message : "Zones saved.", !!error);
+  });
+  document.getElementById("vergi-kaydet").addEventListener("click", async () => {
+    const v = document.getElementById("od-vergi").value.trim() || "0";
+    if (Number(v) < 0) return bildir("Tax cannot be negative.", true);
+    const { error } = await ayarKoy("vergi_oran", v);
+    bildir(error ? error.message : "Tax saved.", !!error);
+  });
 }
 
 /* ===========================================================================
@@ -1561,12 +1853,21 @@ async function analitikSayfasi() {
   const gvd = document.getElementById("icerik");
 
   const otuzGun = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-  const { data, error } = await sb.from("ziyaretler")
-    .select("yol,kaynak,olusturuldu")
-    .gt("olusturuldu", otuzGun)
-    .order("olusturuldu", { ascending: false })
-    .limit(20000);
+  const [{ data, error }, sat] = await Promise.all([
+    sb.from("ziyaretler")
+      .select("yol,kaynak,olusturuldu")
+      .gt("olusturuldu", otuzGun)
+      .order("olusturuldu", { ascending: false })
+      .limit(20000),
+    sb.from("siparisler")
+      .select("tutar,kargo,para_birimi,durum,olusturuldu,kupon,ilan_baslik")
+      .order("olusturuldu", { ascending: false })
+      .limit(2000),
+  ]);
   if (error) return void (gvd.innerHTML = hataKutusu(error));
+  const siparisler = (sat.data || []).filter(x => x.durum === "odendi");
+  const ciro = siparisler.reduce((t, x) => t + Number(x.tutar || 0) + Number(x.kargo || 0), 0);
+  const kuponlu = siparisler.filter(x => (x.kupon || "").trim() !== "").length;
 
   const v = data || [];
   const simdi = Date.now();
@@ -1602,7 +1903,7 @@ async function analitikSayfasi() {
 
   const YOL_ADI = y => y === "#/" ? "Home"
     : y.indexOf("#/item/") === 0 ? "Item: " + y.slice(7)
-    : y.indexOf("#/browse") === 0 ? "Vitrin"
+    : y.indexOf("#/browse") === 0 ? "Showcase"
     : y.indexOf("#/info/") === 0 ? "Page: " + y.slice(7)
     : y;
 
@@ -1615,6 +1916,15 @@ async function analitikSayfasi() {
     <div><b>${bugun}</b><span>Today</span></div>
     <div><b>${hafta}</b><span>Last 7 days</span></div>
     <div><b>${v.length}</b><span>Last 30 days</span></div>
+  </div>
+
+  <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
+    <h3 style="margin-block-end:.75rem">Revenue</h3>
+    <div class="ozet" style="margin-block-end:0">
+      <div><b>${esc(para(ciro, (siparisler[0] || {}).para_birimi || "USD"))}</b><span> collected</span></div>
+      <div><b>${siparisler.length}</b><span>paid orders</span></div>
+      <div><b>${kuponlu}</b><span>with coupon</span></div>
+    </div>
   </div>
 
   <div class="kutu" style="padding:1.25rem;margin-block-end:.75rem">
@@ -1666,3 +1976,200 @@ async function analitikSayfasi() {
   });
 }
 
+/* -------------------------------------------------- media editor */
+function kaynakTamUrl(k) {
+  if (!k || !k.yol) return "";
+  if (k.yol.indexOf("img/") === 0) {
+    return "https://raw.githubusercontent.com/4lptek1n/visionary-object/main/"
+      + k.yol + "-f.webp";
+  }
+  try {
+    return sb.storage.from("gorseller").getPublicUrl(k.yol).data.publicUrl;
+  } catch (e) { return ""; }
+}
+function resimYukle(url) {
+  return new Promise((ok, hata) => {
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => ok(im);
+    im.onerror = () => hata(new Error("image load failed"));
+    im.src = url;
+  });
+}
+async function kirpmaKaydet(il, kareler, blob, ad) {
+  const yol = il.slug + "/crop-" + Date.now() + "-" + ad + ".jpg";
+  const { error: yErr } = await sb.storage.from("gorseller")
+    .upload(yol, blob, { cacheControl: "31536000", upsert: false });
+  if (yErr) throw yErr;
+  const { data, error } = await sb.from("kareler").insert({
+    ilan_id: il.id, sira: kareler.length + 1,
+    rol: "detay", yol, w: null, h: null, kaynak: "kirpma"
+  }).select().single();
+  if (error) throw error;
+  kareler.push(data);
+  await siraKaydet(kareler);
+  return data;
+}
+
+function kirpmaPenceresi(il, kareler, k) {
+  const d = document.createElement("dialog");
+  d.style.cssText = "max-width:min(860px,94vw);padding:0;border:1px solid var(--pnl-line-ui);border-radius:2px;";
+  d.innerHTML = `
+    <div style="padding:16px 18px">
+      <h3 style="margin:0 0 4px">Crop new image</h3>
+      <p class="ipucu" style="margin:0 0 10px">Drag on the photo. Saved as a new detail image; the original stays.</p>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" data-oran>
+        <button class="btn btn--line btn--kucuk" data-o="">Free</button>
+        <button class="btn btn--line btn--kucuk" data-o="1">Square</button>
+        <button class="btn btn--line btn--kucuk" data-o="0.8">4:5</button>
+        <button class="btn btn--line btn--kucuk" data-o="1.5">3:2</button>
+      </div>
+      <div style="position:relative;display:inline-block;max-width:100%;touch-action:none">
+        <canvas id="krp" style="max-width:100%;display:block;cursor:crosshair"></canvas>
+      </div>
+      <p class="ipucu" id="krp-bilgi" style="margin:8px 0"></p>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn--line" value="iptal">Cancel</button>
+        <button class="btn btn--ana" value="tamam">Save as new image</button>
+      </div>
+    </div>`;
+  document.body.append(d);
+  const tuval = d.querySelector("#krp");
+  const bilgi = d.querySelector("#krp-bilgi");
+  const ic = tuval.getContext("2d");
+  let oran = 0, secim = null, surukle = false;
+  let img = null, olcek = 1;
+  d.querySelector("[data-oran]").addEventListener("click", e => {
+    const b = e.target.closest("[data-o]");
+    if (!b) return;
+    oran = parseFloat(b.dataset.o) || 0;
+  });
+  function ciz() {
+    ic.clearRect(0, 0, tuval.width, tuval.height);
+    ic.drawImage(img, 0, 0, tuval.width, tuval.height);
+    if (!secim) return;
+    const [x0, y0, x1, y1] = secim;
+    ic.fillStyle = "rgba(0,0,0,.45)";
+    ic.fillRect(0, 0, tuval.width, tuval.height);
+    ic.clearRect(x0, y0, x1 - x0, y1 - y0);
+    ic.drawImage(img, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    ic.strokeStyle = "#fff"; ic.lineWidth = 2;
+    ic.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    bilgi.textContent = Math.round((x1 - x0) * olcek) + " x "
+      + Math.round((y1 - y0) * olcek) + " px";
+  }
+  function nokta(e) {
+    const r = tuval.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  }
+  tuval.addEventListener("pointerdown", e => {
+    const [x, y] = nokta(e);
+    secim = [x, y, x, y]; surukle = true;
+    tuval.setPointerCapture(e.pointerId); ciz();
+  });
+  tuval.addEventListener("pointermove", e => {
+    if (!surukle) return;
+    let [x, y] = nokta(e);
+    x = Math.max(0, Math.min(tuval.width, x));
+    y = Math.max(0, Math.min(tuval.height, y));
+    let [x0, y0] = secim;
+    if (oran > 0) {
+      let w = Math.abs(x - x0), h = w / oran;
+      if (y < y0) h = -h;
+      x = x0 + (x < x0 ? -w : w); y = y0 + h;
+    }
+    secim = [Math.min(x0, x), Math.min(y0, y), Math.max(x0, x), Math.max(y0, y)];
+    ciz();
+  });
+  tuval.addEventListener("pointerup", () => { surukle = false; });
+  bildir("Loading full image…");
+  resimYukle(kaynakTamUrl(k)).then(g => {
+    img = g;
+    const en = Math.min(760, img.naturalWidth);
+    olcek = img.naturalWidth / en;
+    tuval.width = en;
+    tuval.height = Math.round(img.naturalHeight * en / img.naturalWidth);
+    const w = tuval.width * 0.6, h = tuval.height * 0.6;
+    secim = [(tuval.width - w) / 2, (tuval.height - h) / 2,
+             (tuval.width + w) / 2, (tuval.height + h) / 2];
+    ciz(); d.showModal();
+  }).catch(() => bildir("Full image could not be loaded.", true));
+  d.addEventListener("click", async e => {
+    const b = e.target.closest("button");
+    if (!b || b.value === "iptal" || !e.target.closest("dialog")) {
+      if (b && b.value === "iptal") { d.close(); d.remove(); }
+      return;
+    }
+    if (b.value !== "tamam" || !secim || !img) return;
+    const [x0, y0, x1, y1] = secim.map(v => Math.round(v * olcek));
+    if (x1 - x0 < 200 || y1 - y0 < 200)
+      return bildir("Selection too small (min 200 px).", true);
+    const c2 = document.createElement("canvas");
+    c2.width = x1 - x0; c2.height = y1 - y0;
+    c2.getContext("2d").drawImage(img, x0, y0, c2.width, c2.height, 0, 0, c2.width, c2.height);
+    b.disabled = true; b.textContent = "Saving…";
+    c2.toBlob(async bl => {
+      try {
+        await kirpmaKaydet(il, kareler, bl, "secim");
+        const row = kareler[kareler.length - 1];
+        row.w = c2.width; row.h = c2.height;
+        await sb.from("kareler").update({ w: c2.width, h: c2.height }).eq("id", row.id);
+        kareleriCiz(il, kareler);
+        bildir("Cropped image added.");
+        d.close(); d.remove();
+      } catch (err) { bildir(err.message, true); b.disabled = false; b.textContent = "Save as new image"; }
+    }, "image/jpeg", 0.9);
+  });
+}
+
+async function varyasyonUret(il, kareler, dugme) {
+  const kapak = kareler[0];
+  if (!kapak) return bildir("No cover image.", true);
+  dugme.disabled = true;
+  dugme.textContent = "Working…";
+  try {
+    const img = await resimYukle(kaynakTamUrl(kapak));
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const kutular = [
+      [0, 0, W * 0.58, H * 0.58],
+      [W * 0.42, H * 0.42, W, H],
+      [W * 0.42, 0, W, H * 0.58],
+      [0, H * 0.42, W * 0.58, H],
+    ].filter(([x0, y0, x1, y1]) => x1 - x0 >= 350 && y1 - y0 >= 350);
+    if (!kutular.length) throw new Error("Cover too small for variations.");
+    let n = 0;
+    for (const [x0, y0, x1, y1] of kutular) {
+      const c = document.createElement("canvas");
+      let cw = Math.round(x1 - x0), ch = Math.round(y1 - y0);
+      c.width = cw; c.height = ch;
+      c.getContext("2d").drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+      const bl = await new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
+      const row = await kirpmaKaydet(il, kareler, bl, "oto" + (++n));
+      row.w = cw; row.h = ch;
+      await sb.from("kareler").update({ w: cw, h: ch }).eq("id", row.id);
+      dugme.textContent = "Working… " + n + "/" + kutular.length;
+    }
+    kareleriCiz(il, kareler);
+    bildir(n + " variations added from cover.");
+  } catch (e) { bildir(e.message, true); }
+  dugme.disabled = false;
+  dugme.textContent = "Auto variations from cover";
+}
+function varyasyonKur(il, kareler) {
+  const kap = document.getElementById("kare-liste");
+  if (!kap || document.getElementById("varyasyonBtn")) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.id = "varyasyonBtn";
+  b.className = "btn btn--line btn--kucuk";
+  b.style.marginTop = ".75rem";
+  b.textContent = "Auto variations from cover";
+  b.addEventListener("click", () => varyasyonUret(il, kareler, b));
+  kap.after(b);
+  kap.addEventListener("click", e => {
+    const t = e.target.closest("[data-kirp]");
+    if (!t) return;
+    const k = kareler.find(x => String(x.id) === t.dataset.kirp);
+    if (k) kirpmaPenceresi(il, kareler, k);
+  });
+}
