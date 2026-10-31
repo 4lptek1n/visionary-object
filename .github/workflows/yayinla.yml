@@ -49,23 +49,55 @@ jobs:
       - name: Bekleyen istek var mi
         id: kontrol
         run: |
-          jeton=$(curl -s -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
-            -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
-            -d "{\"email\":\"$SUPABASE_EPOSTA\",\"password\":\"$SUPABASE_SIFRE\"}" \
-            | python3 -c "import sys,json;print(json.load(sys.stdin).get('access_token',''))")
-          if [ -n "$jeton" ]; then
-            echo "::add-mask::$jeton"; echo "JETON=$jeton" >> $GITHUB_ENV
-          else
-            echo "giris olmadi"
-          fi
+          # Elle calistirma, Supabase oturum acma kontrolunu atlar.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "var=evet" >> $GITHUB_OUTPUT; echo "Elle tetiklendi."; exit 0
+            echo "var=evet" >> $GITHUB_OUTPUT
+            echo "Elle tetiklendi."
+            exit 0
           fi
-          if [ -z "$jeton" ]; then echo "var=hayir" >> $GITHUB_OUTPUT; exit 0; fi
-          adet=$(curl -s -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $jeton" \
-            "$SUPABASE_URL/rest/v1/yayin_istek?durum=eq.sirada&select=id" | grep -o '"id"' | wc -l)
+
+          # Eksik secret veya Supabase erisim hatasini acik goster.
+          for ad in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_EPOSTA SUPABASE_SIFRE; do
+            if [ -z "${!ad}" ]; then
+              echo "::error::GitHub Actions secret eksik: $ad"
+              exit 1
+            fi
+          done
+
+          payload=$(python3 -c 'import json,os; print(json.dumps({"email":os.environ["SUPABASE_EPOSTA"],"password":os.environ["SUPABASE_SIFRE"]}))')
+          yanit=$(mktemp)
+          if ! http=$(curl --silent --show-error --location --connect-timeout 15 --max-time 30 \
+            --output "$yanit" --write-out "%{http_code}" \
+            -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+            -d "$payload"); then
+            echo "::error::Supabase Auth endpointine baglanilamadi. URL/secret ve ag erisimini kontrol et."
+            rm -f "$yanit"
+            exit 1
+          fi
+          if [ "$http" != "200" ]; then
+            echo "::error::Supabase Auth HTTP $http yaniti verdi:"
+            head -c 500 "$yanit"
+            echo
+            rm -f "$yanit"
+            exit 1
+          fi
+
+          jeton=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' < "$yanit" 2>/dev/null || true)
+          rm -f "$yanit"
+          if [ -z "$jeton" ]; then
+            echo "::error::Supabase Auth 200 dondu ama access_token bulunamadi."
+            exit 1
+          fi
+          echo "::add-mask::$jeton"
+          echo "JETON=$jeton" >> "$GITHUB_ENV"
+
+          adet=$(curl --silent --show-error --fail --location \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $jeton" \
+            "$SUPABASE_URL/rest/v1/yayin_istek?durum=eq.sirada&select=id" \
+            | grep -o '"id"' | wc -l)
           echo "bekleyen istek: $adet"
-          if [ "$adet" -gt 0 ]; then echo "var=evet" >> $GITHUB_OUTPUT; else echo "var=hayir" >> $GITHUB_OUTPUT; fi
+          if [ "$adet" -gt 0 ]; then echo "var=evet" >> "$GITHUB_OUTPUT"; else echo "var=hayir" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/setup-python@v5
         if: steps.kontrol.outputs.var == 'evet'
